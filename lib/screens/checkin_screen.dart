@@ -248,7 +248,7 @@ class _CheckInScreenState extends State<CheckInScreen>
                         const Icon(Icons.local_hospital_rounded, color: Colors.white, size: 48),
                         const SizedBox(height: 8),
                         const Text(
-                          'مركز الأشعة',
+                          'العياده و المراكز',
                           style: TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold),
                         ),
                         const Text(

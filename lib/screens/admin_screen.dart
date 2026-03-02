@@ -350,9 +350,12 @@ class _AllRecordsTab extends StatelessWidget {
                           const SizedBox(width: 8),
                           const Icon(Icons.calendar_today_rounded, color: Colors.white24, size: 11),
                           const SizedBox(width: 3),
-                          Text(
-                            DateFormat('EEEE، d MMM yyyy', 'ar').format(r.checkInTime),
-                            style: const TextStyle(color: Colors.white38, fontSize: 11),
+                          Flexible(
+                            child: Text(
+                              DateFormat('EEEE، d MMM yyyy', 'ar').format(r.checkInTime),
+                              style: const TextStyle(color: Colors.white38, fontSize: 11),
+                              overflow: TextOverflow.ellipsis,
+                            ),
                           ),
                         ],
                       ),
