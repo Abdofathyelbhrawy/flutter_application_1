@@ -118,7 +118,7 @@ class _ExcuseScreenState extends State<ExcuseScreen> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(widget.record.name, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-                            Text('تأخير ${widget.record.minutesLate} دقيقة', style: const TextStyle(color: Colors.orange)),
+                            Text('تأخير ${AppTheme.formatLateTime(widget.record.minutesLate)}', style: const TextStyle(color: Colors.orange)),
                           ],
                         ),
                       ),

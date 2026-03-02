@@ -16,6 +16,7 @@ class SupabaseService {
       'status': record.status.index,
       'excuse': record.excuse,
       'minutes_late': record.minutesLate,
+      'location_name': record.locationName,
     });
   }
 
@@ -46,7 +47,7 @@ class SupabaseService {
                   : null,
               status: AttendanceStatus.values[json['status']],
               excuse: json['excuse'],
-              // minutes_late is calculated in the model getter, but we store it for query if needed
+              locationName: json['location_name'] as String?,
             );
           }).toList(),
         );
@@ -142,4 +143,19 @@ class SupabaseService {
     }
     return settings;
   }
+
+  /// بث real-time للإعدادات — يُطلق عند كل تغيير في جدول app_settings
+  Stream<Map<String, String>> streamSettings() {
+    return _supabase
+        .from('app_settings')
+        .stream(primaryKey: ['key'])
+        .map((rows) {
+          final Map<String, String> settings = {};
+          for (final row in rows) {
+            settings[row['key'] as String] = row['value'] as String;
+          }
+          return settings;
+        });
+  }
 }
+

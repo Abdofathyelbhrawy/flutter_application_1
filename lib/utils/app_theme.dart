@@ -44,4 +44,16 @@ class AppTheme {
       ),
     );
   }
+  /// يعرض وقت التأخير بصيغة ذكية:
+  ///   < 60 دقيقة  →  "15 دقيقة"
+  ///   >= 60 دقيقة →  "1 ساعة و30 دقيقة"  أو "ساعة" إذا الدقائق = 0
+  static String formatLateTime(int minutes) {
+    if (minutes < 60) return '$minutes دقيقة';
+    final h = minutes ~/ 60;
+    final m = minutes % 60;
+    final hLabel = h == 1 ? 'ساعة' : '$h ساعات';
+    if (m == 0) return hLabel;
+    return '$hLabel و$m دقيقة';
+  }
 }
+

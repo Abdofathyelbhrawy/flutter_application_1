@@ -34,6 +34,7 @@ class AttendanceProvider extends ChangeNotifier {
 
   StreamSubscription? _recordsSubscription;
   StreamSubscription? _notifSubscription;
+  StreamSubscription? _settingsSubscription;
 
   List<AttendanceRecord> get records => _records;
   List<Map<String, dynamic>> get adminNotifications => _adminNotifications;
@@ -84,8 +85,14 @@ class AttendanceProvider extends ChangeNotifier {
   }
 
   Future<void> _initSupabase() async {
+    // Load settings once first (to populate values before stream fires)
     await _loadSettings();
-    
+
+    // Then subscribe to real-time settings changes
+    _settingsSubscription = _supabaseService.streamSettings().listen((settings) {
+      _applySettings(settings);
+    });
+
     _recordsSubscription = _supabaseService.streamRecords().listen((data) {
       _records = data;
       notifyListeners();
@@ -101,6 +108,7 @@ class AttendanceProvider extends ChangeNotifier {
   void dispose() {
     _recordsSubscription?.cancel();
     _notifSubscription?.cancel();
+    _settingsSubscription?.cancel();
     super.dispose();
   }
 
@@ -190,7 +198,8 @@ class AttendanceProvider extends ChangeNotifier {
 
     final now = DateTime.now();
     final shiftStart = _shiftStartForDay(now, locationName);
-    final late = now.isAfter(shiftStart);
+    final graceEnd = shiftStart.add(Duration(minutes: _lateThresholdMinutes));
+    final late = now.isAfter(graceEnd);
     final minutesLate = late ? now.difference(shiftStart).inMinutes : 0;
 
     final status = late ? AttendanceStatus.late : AttendanceStatus.present;
@@ -455,6 +464,11 @@ class AttendanceProvider extends ChangeNotifier {
 
   Future<void> _loadSettings() async {
     final settings = await _supabaseService.loadSettings();
+    _applySettings(settings);
+  }
+
+  /// يُطبَّق عند أول تحميل وعند كل تغيير real-time في الإعدادات
+  void _applySettings(Map<String, String> settings) {
     if (settings.containsKey('shiftStartHour')) _shiftStartHour = int.parse(settings['shiftStartHour']!);
     if (settings.containsKey('shiftStartMinute')) _shiftStartMinute = int.parse(settings['shiftStartMinute']!);
     if (settings.containsKey('shift2Enabled')) _shift2Enabled = settings['shift2Enabled'] == 'true';
@@ -465,7 +479,7 @@ class AttendanceProvider extends ChangeNotifier {
     if (settings.containsKey('shift3StartMinute')) _shift3StartMinute = int.parse(settings['shift3StartMinute']!);
     if (settings.containsKey('lateThresholdMinutes')) _lateThresholdMinutes = int.parse(settings['lateThresholdMinutes']!);
     if (settings.containsKey('absentAfterMinutes')) _absentAfterMinutes = int.parse(settings['absentAfterMinutes']!);
-    
+
     if (settings.containsKey('locationRestrictionEnabled')) {
       _locationRestrictionEnabled = settings['locationRestrictionEnabled'] == 'true';
     }
@@ -477,8 +491,8 @@ class AttendanceProvider extends ChangeNotifier {
         if (kDebugMode) print('Error parsing locations: $e');
       }
     }
-    
-    // Ensure all required fixed locations are present (add any missing)
+
+    // Ensure required fixed locations are present
     final requiredLocations = [
       {'name': 'أسنان سكان بسيون', 'lat': 30.939249, 'lng': 30.814687},
       {'name': 'بري وبانوراما', 'lat': 30.724964, 'lng': 31.121525},
@@ -493,9 +507,10 @@ class AttendanceProvider extends ChangeNotifier {
         locationListChanged = true;
       }
     }
-    if (locationListChanged || _allowedLocations.isEmpty) {
-      await _supabaseService.saveSetting('allowedLocations', jsonEncode(_allowedLocations));
+    if (locationListChanged) {
+      _supabaseService.saveSetting('allowedLocations', jsonEncode(_allowedLocations));
     }
+
     notifyListeners();
   }
 

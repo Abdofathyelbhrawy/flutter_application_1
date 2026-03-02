@@ -229,7 +229,7 @@ class _AllRecordsTab extends StatelessWidget {
   String _statusLabel(AttendanceRecord r) {
     switch (r.status) {
       case AttendanceStatus.present: return 'حاضر';
-      case AttendanceStatus.late: return 'متأخر ${r.minutesLate} د';
+      case AttendanceStatus.late: return 'متأخر ${AppTheme.formatLateTime(r.minutesLate)}';
       case AttendanceStatus.lateWithExcuse: return 'متأخر بعذر';
       case AttendanceStatus.lateExcusePending: return 'عذر معلق';
       case AttendanceStatus.absent: return 'غياب';
@@ -395,7 +395,7 @@ class _AllRecordsTab extends StatelessWidget {
                             _InfoRow(
                                 icon: Icons.timer_rounded,
                                 label: 'مدة التأخير',
-                                value: '${r.minutesLate} دقيقة',
+                                value: AppTheme.formatLateTime(r.minutesLate),
                                 valueColor: Colors.orange),
                           if (r.excuse != null)
                             _InfoRow(
@@ -615,7 +615,7 @@ class _NotificationTile extends StatelessWidget {
         color = Colors.orange;
         icon = Icons.access_time_rounded;
         title = 'تأخير ⚠️';
-        subtitle = 'وصل $name متأخراً $minutesLate دقيقة';
+        subtitle = 'وصل $name متأخراً ${AppTheme.formatLateTime(minutesLate)}';
         break;
       case 'auto_absent':
         color = Colors.red;

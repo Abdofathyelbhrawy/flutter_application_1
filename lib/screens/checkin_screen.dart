@@ -127,7 +127,7 @@ class _CheckInScreenState extends State<CheckInScreen>
           mainAxisSize: MainAxisSize.min,
           children: [
             Text(
-              'أنت متأخر ${record.minutesLate} دقيقة',
+              'أنت متأخر ${AppTheme.formatLateTime(record.minutesLate)}',
               style: const TextStyle(color: Colors.white70, fontSize: 16),
               textAlign: TextAlign.center,
             ),

@@ -1,6 +1,7 @@
 // services/notification_service.dart
 import 'package:flutter/material.dart' show Color;
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import '../utils/app_theme.dart';
 
 class NotificationService {
   static final NotificationService _instance = NotificationService._internal();
@@ -47,7 +48,7 @@ class NotificationService {
     await init();
     final String title = isLate ? '⚠️ تأخير في الحضور' : '✅ حضور جديد';
     final String body = isLate
-        ? '$name وصل متأخراً $minutesLate دقيقة'
+        ? '$name وصل متأخراً ${AppTheme.formatLateTime(minutesLate)}'
         : '$name سجّل حضوره في الوقت';
     await _show(
       id: name.hashCode & 0x7FFFFFFF,

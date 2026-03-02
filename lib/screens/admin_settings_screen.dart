@@ -12,49 +12,81 @@ class AdminSettingsScreen extends StatefulWidget {
 }
 
 class _AdminSettingsScreenState extends State<AdminSettingsScreen> {
-  late int _shiftHour;    // العياده شفت 1
+  // Stored internally as 12-hour display values + AM/PM
+  late int _shiftHour12;   // 1-12
   late int _shiftMinute;
+  late bool _shiftIsPm;
+
   bool _shift2Enabled = true;
-  late int _shift2Hour;   // العياده شفت 2
+  late int _shift2Hour12;
   late int _shift2Minute;
+  late bool _shift2IsPm;
+
   bool _shift3Enabled = true;
-  late int _shift3Hour;   // المركز
+  late int _shift3Hour12;
   late int _shift3Minute;
+  late bool _shift3IsPm;
+
   late int _lateThreshold;
   late int _absentAfter;
-  
+
   bool _locationEnabled = false;
   bool _isLoadingLocation = false;
+
+  // ---- helpers ----
+  /// تحويل 24h → 12h display + isPm
+  static (int, bool) _to12(int h24) {
+    final isPm = h24 >= 12;
+    var h12 = h24 % 12;
+    if (h12 == 0) h12 = 12;
+    return (h12, isPm);
+  }
+
+  /// تحويل 12h + isPm → 24h
+  static int _to24(int h12, bool isPm) {
+    if (isPm) {
+      return h12 == 12 ? 12 : h12 + 12;
+    } else {
+      return h12 == 12 ? 0 : h12;
+    }
+  }
 
   @override
   void initState() {
     super.initState();
     final p = context.read<AttendanceProvider>();
-    _shiftHour = p.shiftStartHour;
-    _shiftMinute = p.shiftStartMinute;
+
+    final s1 = _to12(p.shiftStartHour);
+    _shiftHour12   = s1.$1; _shiftIsPm  = s1.$2;
+    _shiftMinute   = p.shiftStartMinute;
     _shift2Enabled = p.shift2Enabled;
-    _shift2Hour = p.shift2StartHour;
-    _shift2Minute = p.shift2StartMinute;
+
+    final s2 = _to12(p.shift2StartHour);
+    _shift2Hour12  = s2.$1; _shift2IsPm = s2.$2;
+    _shift2Minute  = p.shift2StartMinute;
     _shift3Enabled = p.shift3Enabled;
-    _shift3Hour = p.shift3StartHour;
-    _shift3Minute = p.shift3StartMinute;
-    _lateThreshold = p.lateThresholdMinutes;
-    _absentAfter = p.absentAfterMinutes;
+
+    final s3 = _to12(p.shift3StartHour);
+    _shift3Hour12  = s3.$1; _shift3IsPm = s3.$2;
+    _shift3Minute  = p.shift3StartMinute;
+
+    _lateThreshold   = p.lateThresholdMinutes;
+    _absentAfter     = p.absentAfterMinutes;
     _locationEnabled = p.locationRestrictionEnabled;
   }
 
   Future<void> _save() async {
     await context.read<AttendanceProvider>().updateSettings(
-      shiftStartHour: _shiftHour,
-      shiftStartMinute: _shiftMinute,
-      shift2Enabled: _shift2Enabled,
-      shift2StartHour: _shift2Hour,
+      shiftStartHour:    _to24(_shiftHour12,  _shiftIsPm),
+      shiftStartMinute:  _shiftMinute,
+      shift2Enabled:     _shift2Enabled,
+      shift2StartHour:   _to24(_shift2Hour12, _shift2IsPm),
       shift2StartMinute: _shift2Minute,
-      shift3Enabled: _shift3Enabled,
-      shift3StartHour: _shift3Hour,
+      shift3Enabled:     _shift3Enabled,
+      shift3StartHour:   _to24(_shift3Hour12, _shift3IsPm),
       shift3StartMinute: _shift3Minute,
-      lateThresholdMinutes: _lateThreshold,
-      absentAfterMinutes: _absentAfter,
+      lateThresholdMinutes:      _lateThreshold,
+      absentAfterMinutes:        _absentAfter,
       locationRestrictionEnabled: _locationEnabled,
     );
     if (!mounted) return;
@@ -204,12 +236,17 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen> {
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        _NumberPicker(label: 'الساعة', value: _shiftHour, min: 0, max: 23, onChanged: (v) => setState(() => _shiftHour = v)),
+                        _NumberPicker(label: 'الساعة', value: _shiftHour12, min: 1, max: 12, onChanged: (v) => setState(() => _shiftHour12 = v)),
                         const Padding(
                           padding: EdgeInsets.symmetric(horizontal: 12),
                           child: Text(':', style: TextStyle(color: Colors.white, fontSize: 28, fontWeight: FontWeight.bold)),
                         ),
                         _NumberPicker(label: 'الدقيقة', value: _shiftMinute, min: 0, max: 59, onChanged: (v) => setState(() => _shiftMinute = v)),
+                        const SizedBox(width: 12),
+                        _AmPmToggle(
+                          isPm: _shiftIsPm,
+                          onChanged: (v) => setState(() => _shiftIsPm = v),
+                        ),
                       ],
                     ),
                   ),
@@ -220,10 +257,12 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen> {
                   title: 'وقت بداية الدوام - العياده شفت 2',
                   enabled: _shift2Enabled,
                   onToggle: (v) => setState(() => _shift2Enabled = v),
-                  hour: _shift2Hour,
+                  hour: _shift2Hour12,
                   minute: _shift2Minute,
-                  onHourChanged: (v) => setState(() => _shift2Hour = v),
+                  isPm: _shift2IsPm,
+                  onHourChanged: (v) => setState(() => _shift2Hour12 = v),
                   onMinuteChanged: (v) => setState(() => _shift2Minute = v),
+                  onAmPmChanged: (v) => setState(() => _shift2IsPm = v),
                 ),
                 const SizedBox(height: 16),
                 // -- Shift 3: المركز, toggleable --
@@ -231,10 +270,12 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen> {
                   title: 'وقت بداية الدوام - المركز',
                   enabled: _shift3Enabled,
                   onToggle: (v) => setState(() => _shift3Enabled = v),
-                  hour: _shift3Hour,
+                  hour: _shift3Hour12,
                   minute: _shift3Minute,
-                  onHourChanged: (v) => setState(() => _shift3Hour = v),
+                  isPm: _shift3IsPm,
+                  onHourChanged: (v) => setState(() => _shift3Hour12 = v),
                   onMinuteChanged: (v) => setState(() => _shift3Minute = v),
+                  onAmPmChanged: (v) => setState(() => _shift3IsPm = v),
                 ),
                 const SizedBox(height: 16),
                 _SettingsCard(
@@ -500,10 +541,12 @@ class _ShiftCard extends StatelessWidget {
   final String title;
   final bool enabled;
   final ValueChanged<bool> onToggle;
-  final int hour;
+  final int hour;    // 1-12
   final int minute;
+  final bool isPm;
   final ValueChanged<int> onHourChanged;
   final ValueChanged<int> onMinuteChanged;
+  final ValueChanged<bool> onAmPmChanged;
 
   const _ShiftCard({
     required this.title,
@@ -511,8 +554,10 @@ class _ShiftCard extends StatelessWidget {
     required this.onToggle,
     required this.hour,
     required this.minute,
+    required this.isPm,
     required this.onHourChanged,
     required this.onMinuteChanged,
+    required this.onAmPmChanged,
   });
 
   @override
@@ -560,12 +605,14 @@ class _ShiftCard extends StatelessWidget {
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      _NumberPicker(label: 'الساعة', value: hour, min: 0, max: 23, onChanged: onHourChanged),
+                      _NumberPicker(label: 'الساعة', value: hour, min: 1, max: 12, onChanged: onHourChanged),
                       const Padding(
                         padding: EdgeInsets.symmetric(horizontal: 12),
                         child: Text(':', style: TextStyle(color: Colors.white, fontSize: 28, fontWeight: FontWeight.bold)),
                       ),
                       _NumberPicker(label: 'الدقيقة', value: minute, min: 0, max: 59, onChanged: onMinuteChanged),
+                      const SizedBox(width: 12),
+                      _AmPmToggle(isPm: isPm, onChanged: onAmPmChanged),
                     ],
                   ),
                 ),
@@ -582,3 +629,57 @@ class _ShiftCard extends StatelessWidget {
     );
   }
 }
+
+/// زر AM / PM يُبدَّل بين الصباح والمساء
+class _AmPmToggle extends StatelessWidget {
+  final bool isPm;
+  final ValueChanged<bool> onChanged;
+  const _AmPmToggle({required this.isPm, required this.onChanged});
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        _Seg(label: 'AM', active: !isPm, onTap: () => onChanged(false)),
+        const SizedBox(height: 4),
+        _Seg(label: 'PM', active: isPm,  onTap: () => onChanged(true)),
+      ],
+    );
+  }
+}
+
+class _Seg extends StatelessWidget {
+  final String label;
+  final bool active;
+  final VoidCallback onTap;
+  const _Seg({required this.label, required this.active, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+        decoration: BoxDecoration(
+          color: active ? AppTheme.primaryColor : AppTheme.backgroundColor,
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(
+            color: active ? AppTheme.primaryColor : Colors.white24,
+          ),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            color: active ? Colors.white : Colors.white38,
+            fontWeight: active ? FontWeight.bold : FontWeight.normal,
+            fontSize: 13,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+
