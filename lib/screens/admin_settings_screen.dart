@@ -27,6 +27,11 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen> {
   late int _shift3Minute;
   late bool _shift3IsPm;
 
+  bool _shift4Enabled = true;
+  late int _shift4Hour12;
+  late int _shift4Minute;
+  late bool _shift4IsPm;
+
   late int _lateThreshold;
   late int _absentAfter;
 
@@ -69,6 +74,11 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen> {
     final s3 = _to12(p.shift3StartHour);
     _shift3Hour12  = s3.$1; _shift3IsPm = s3.$2;
     _shift3Minute  = p.shift3StartMinute;
+    _shift4Enabled = p.shift4Enabled;
+
+    final s4 = _to12(p.shift4StartHour);
+    _shift4Hour12  = s4.$1; _shift4IsPm = s4.$2;
+    _shift4Minute  = p.shift4StartMinute;
 
     _lateThreshold   = p.lateThresholdMinutes;
     _absentAfter     = p.absentAfterMinutes;
@@ -85,6 +95,9 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen> {
       shift3Enabled:     _shift3Enabled,
       shift3StartHour:   _to24(_shift3Hour12, _shift3IsPm),
       shift3StartMinute: _shift3Minute,
+      shift4Enabled:     _shift4Enabled,
+      shift4StartHour:   _to24(_shift4Hour12, _shift4IsPm),
+      shift4StartMinute: _shift4Minute,
       lateThresholdMinutes:      _lateThreshold,
       absentAfterMinutes:        _absentAfter,
       locationRestrictionEnabled: _locationEnabled,
@@ -265,9 +278,9 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen> {
                   onAmPmChanged: (v) => setState(() => _shift2IsPm = v),
                 ),
                 const SizedBox(height: 16),
-                // -- Shift 3: المركز, toggleable --
+                // -- Shift 3: المركز صباحي, toggleable --
                 _ShiftCard(
-                  title: 'وقت بداية الدوام - المركز',
+                  title: 'وقت بداية الدوام - المركز (صباحي)',
                   enabled: _shift3Enabled,
                   onToggle: (v) => setState(() => _shift3Enabled = v),
                   hour: _shift3Hour12,
@@ -276,6 +289,19 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen> {
                   onHourChanged: (v) => setState(() => _shift3Hour12 = v),
                   onMinuteChanged: (v) => setState(() => _shift3Minute = v),
                   onAmPmChanged: (v) => setState(() => _shift3IsPm = v),
+                ),
+                const SizedBox(height: 16),
+                // -- Shift 4: المركز مسائي, toggleable --
+                _ShiftCard(
+                  title: 'وقت بداية الدوام - المركز (مسائي)',
+                  enabled: _shift4Enabled,
+                  onToggle: (v) => setState(() => _shift4Enabled = v),
+                  hour: _shift4Hour12,
+                  minute: _shift4Minute,
+                  isPm: _shift4IsPm,
+                  onHourChanged: (v) => setState(() => _shift4Hour12 = v),
+                  onMinuteChanged: (v) => setState(() => _shift4Minute = v),
+                  onAmPmChanged: (v) => setState(() => _shift4IsPm = v),
                 ),
                 const SizedBox(height: 16),
                 _SettingsCard(

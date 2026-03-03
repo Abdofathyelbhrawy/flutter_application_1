@@ -394,7 +394,7 @@ class _AllRecordsTab extends StatelessWidget {
                                 label: 'انصراف',
                                 value: DateFormat('hh:mm a', 'ar')
                                     .format(r.checkOutTime!)),
-                          if (r.minutesLate > 0)
+                          if (r.minutesLate > 0 && (r.status == AttendanceStatus.late || r.status == AttendanceStatus.lateWithExcuse || r.status == AttendanceStatus.lateExcusePending))
                             _InfoRow(
                                 icon: Icons.timer_rounded,
                                 label: 'مدة التأخير',

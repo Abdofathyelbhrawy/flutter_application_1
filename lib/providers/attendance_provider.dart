@@ -21,10 +21,14 @@ class AttendanceProvider extends ChangeNotifier {
   bool _shift2Enabled = true;
   int _shift2StartHour = 14;
   int _shift2StartMinute = 0;
-  // Settings - Shift 3 (المركز)
+  // Settings - Shift 3 (المركز - صباحي)
   bool _shift3Enabled = true;
   int _shift3StartHour = 9;
   int _shift3StartMinute = 0;
+  // Settings - Shift 4 (المركز - مسائي)
+  bool _shift4Enabled = true;
+  int _shift4StartHour = 19;
+  int _shift4StartMinute = 0;
   int _lateThresholdMinutes = 10;
   int _absentAfterMinutes = 30;
   
@@ -46,6 +50,9 @@ class AttendanceProvider extends ChangeNotifier {
   bool get shift3Enabled => _shift3Enabled;
   int get shift3StartHour => _shift3StartHour;
   int get shift3StartMinute => _shift3StartMinute;
+  bool get shift4Enabled => _shift4Enabled;
+  int get shift4StartHour => _shift4StartHour;
+  int get shift4StartMinute => _shift4StartMinute;
   int get lateThresholdMinutes => _lateThresholdMinutes;
   int get absentAfterMinutes => _absentAfterMinutes;
   
@@ -113,23 +120,39 @@ class AttendanceProvider extends ChangeNotifier {
   }
 
   /// Returns the correct shift start for the given day and location name.
-  /// - المركز / بسيون / السنطة  → Shift 3
-  /// - العياده                  → picks Shift 1 or Shift 2 based on proximity to current time
+  /// - المركز / بسيون / السنطة  → Shift 3 (صباحي) أو Shift 4 (مسائي) حسب وقت التسجيل
+  /// - العياده                  → picks the closest past shift relative to [day]
   DateTime _shiftStartForDay(DateTime day, String? locationName) {
     if (_isMorkazLocation(locationName)) {
-      // المركز: use shift3 if enabled, else fall back to shift1
-      if (_shift3Enabled) {
-        return DateTime(day.year, day.month, day.day, _shift3StartHour, _shift3StartMinute);
+      // المركز: اختر أقرب شيفت سابق بين الشيفت الصباحي والمسائي
+      final shift3 = _shift3Enabled
+          ? DateTime(day.year, day.month, day.day, _shift3StartHour, _shift3StartMinute)
+          : null;
+      final shift4 = _shift4Enabled
+          ? DateTime(day.year, day.month, day.day, _shift4StartHour, _shift4StartMinute)
+          : null;
+
+      if (shift3 == null && shift4 == null) {
+        // كلاهما معطّل، ارجع للشيفت 1 كـ fallback
+        return DateTime(day.year, day.month, day.day, _shiftStartHour, _shiftStartMinute);
       }
-      return DateTime(day.year, day.month, day.day, _shiftStartHour, _shiftStartMinute);
+      if (shift3 == null) return shift4!;
+      if (shift4 == null) return shift3;
+
+      // اختر بناءً على أقرب شيفت سابق لوقت التسجيل
+      if (!day.isAfter(shift3)) return shift3;  // قبل الشيفت الصباحي → شيفت 3
+      if (!day.isAfter(shift4)) return shift3;  // بعد شيفت 3 لكن قبل شيفت 4 → لا يزال في نطاق شيفت 3
+      return shift4;                            // بعد بداية شيفت 4 → شيفت 4
     }
     // العياده: if shift2 disabled, always use shift1
     final shift1 = DateTime(day.year, day.month, day.day, _shiftStartHour, _shiftStartMinute);
     if (!_shift2Enabled) return shift1;
     final shift2 = DateTime(day.year, day.month, day.day, _shift2StartHour, _shift2StartMinute);
-    final now = DateTime.now();
-    final midpoint = shift1.add(Duration(minutes: shift2.difference(shift1).inMinutes ~/ 2));
-    return now.isBefore(midpoint) ? shift1 : shift2;
+
+    // اختار أقرب شيفت سابق أو مساوٍ لوقت التسجيل.
+    if (!day.isAfter(shift1)) return shift1;   // سجل قبل أو في بداية الشيفت 1
+    if (!day.isAfter(shift2)) return shift1;   // سجل بعد الشيفت 1 لكن قبل الشيفت 2 → لا يزال في نطاق الشيفت 1
+    return shift2;                              // سجل بعد بداية الشيفت 2
   }
 
   bool _isMorkazLocation(String? locationName) {
@@ -372,6 +395,9 @@ class AttendanceProvider extends ChangeNotifier {
     bool? shift3Enabled,
     int? shift3StartHour,
     int? shift3StartMinute,
+    bool? shift4Enabled,
+    int? shift4StartHour,
+    int? shift4StartMinute,
     int? lateThresholdMinutes,
     int? absentAfterMinutes,
     bool? locationRestrictionEnabled,
@@ -408,6 +434,18 @@ class AttendanceProvider extends ChangeNotifier {
     if (shift3StartMinute != null) {
       _shift3StartMinute = shift3StartMinute;
       await _supabaseService.saveSetting('shift3StartMinute', shift3StartMinute.toString());
+    }
+    if (shift4Enabled != null) {
+      _shift4Enabled = shift4Enabled;
+      await _supabaseService.saveSetting('shift4Enabled', shift4Enabled.toString());
+    }
+    if (shift4StartHour != null) {
+      _shift4StartHour = shift4StartHour;
+      await _supabaseService.saveSetting('shift4StartHour', shift4StartHour.toString());
+    }
+    if (shift4StartMinute != null) {
+      _shift4StartMinute = shift4StartMinute;
+      await _supabaseService.saveSetting('shift4StartMinute', shift4StartMinute.toString());
     }
     if (lateThresholdMinutes != null) {
       _lateThresholdMinutes = lateThresholdMinutes;
@@ -477,6 +515,9 @@ class AttendanceProvider extends ChangeNotifier {
     if (settings.containsKey('shift3Enabled')) _shift3Enabled = settings['shift3Enabled'] == 'true';
     if (settings.containsKey('shift3StartHour')) _shift3StartHour = int.parse(settings['shift3StartHour']!);
     if (settings.containsKey('shift3StartMinute')) _shift3StartMinute = int.parse(settings['shift3StartMinute']!);
+    if (settings.containsKey('shift4Enabled')) _shift4Enabled = settings['shift4Enabled'] == 'true';
+    if (settings.containsKey('shift4StartHour')) _shift4StartHour = int.parse(settings['shift4StartHour']!);
+    if (settings.containsKey('shift4StartMinute')) _shift4StartMinute = int.parse(settings['shift4StartMinute']!);
     if (settings.containsKey('lateThresholdMinutes')) _lateThresholdMinutes = int.parse(settings['lateThresholdMinutes']!);
     if (settings.containsKey('absentAfterMinutes')) _absentAfterMinutes = int.parse(settings['absentAfterMinutes']!);
 
