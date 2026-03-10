@@ -120,11 +120,12 @@ class AttendanceProvider extends ChangeNotifier {
   }
 
   /// Returns the correct shift start for the given day and location name.
-  /// - المركز / بسيون / السنطة  → Shift 3 (صباحي) أو Shift 4 (مسائي) حسب وقت التسجيل
-  /// - العياده                  → picks the closest past shift relative to [day]
-  DateTime _shiftStartForDay(DateTime day, String? locationName) {
-    if (_isMorkazLocation(locationName)) {
-      // المركز: اختر أقرب شيفت سابق بين الشيفت الصباحي والمسائي
+  /// يستخدم منتصف المسافة بين الشيفتات كنقطة فصل:
+  ///   - لو سجل قبل المنتصف → ينتمي للشيفت الأول
+  ///   - لو سجل بعد المنتصف → ينتمي للشيفت الثاني
+  DateTime shiftStartForDay(DateTime day, String? locationName) {
+    // Case 1: locationName is provided and is a Morkaz location
+    if (locationName != null && _isMorkazLocation(locationName)) {
       final shift3 = _shift3Enabled
           ? DateTime(day.year, day.month, day.day, _shift3StartHour, _shift3StartMinute)
           : null;
@@ -133,26 +134,67 @@ class AttendanceProvider extends ChangeNotifier {
           : null;
 
       if (shift3 == null && shift4 == null) {
-        // كلاهما معطّل، ارجع للشيفت 1 كـ fallback
+        // If both Morkaz shifts are disabled, fall back to default shift 1
         return DateTime(day.year, day.month, day.day, _shiftStartHour, _shiftStartMinute);
       }
       if (shift3 == null) return shift4!;
       if (shift4 == null) return shift3;
 
-      // اختر بناءً على أقرب شيفت سابق لوقت التسجيل
-      if (!day.isAfter(shift3)) return shift3;  // قبل الشيفت الصباحي → شيفت 3
-      if (!day.isAfter(shift4)) return shift3;  // بعد شيفت 3 لكن قبل شيفت 4 → لا يزال في نطاق شيفت 3
-      return shift4;                            // بعد بداية شيفت 4 → شيفت 4
-    }
-    // العياده: if shift2 disabled, always use shift1
-    final shift1 = DateTime(day.year, day.month, day.day, _shiftStartHour, _shiftStartMinute);
-    if (!_shift2Enabled) return shift1;
-    final shift2 = DateTime(day.year, day.month, day.day, _shift2StartHour, _shift2StartMinute);
+      // If day is before or at shift3 start, it's shift3
+      if (!day.isAfter(shift3)) return shift3;
 
-    // اختار أقرب شيفت سابق أو مساوٍ لوقت التسجيل.
-    if (!day.isAfter(shift1)) return shift1;   // سجل قبل أو في بداية الشيفت 1
-    if (!day.isAfter(shift2)) return shift1;   // سجل بعد الشيفت 1 لكن قبل الشيفت 2 → لا يزال في نطاق الشيفت 1
-    return shift2;                              // سجل بعد بداية الشيفت 2
+      // If day is after shift4 start, it's shift4
+      if (day.isAfter(shift4)) return shift4;
+
+      // If day is between shift3 and shift4: use midpoint as separator
+      final midpoint = shift3.add(shift4.difference(shift3) ~/ 2);
+      return day.isAfter(midpoint) ? shift4 : shift3;
+    }
+
+    // Case 2: locationName is provided and is a Clinic location (or null, which defaults to clinic logic)
+    // Or locationName is null, and we need to find the closest shift from all enabled shifts.
+    final shift1 = DateTime(day.year, day.month, day.day, _shiftStartHour, _shiftStartMinute);
+    final shift2 = _shift2Enabled
+        ? DateTime(day.year, day.month, day.day, _shift2StartHour, _shift2StartMinute)
+        : null;
+
+    // If locationName is null, we need to consider all enabled shifts (clinic and morkaz)
+    if (locationName == null) {
+      final List<DateTime> possibleShifts = [shift1]; // Shift 1 is always enabled
+
+      if (_shift2Enabled) possibleShifts.add(shift2!);
+      if (_shift3Enabled) possibleShifts.add(DateTime(day.year, day.month, day.day, _shift3StartHour, _shift3StartMinute));
+      if (_shift4Enabled) possibleShifts.add(DateTime(day.year, day.month, day.day, _shift4StartHour, _shift4StartMinute));
+
+      // Sort shifts by time
+      possibleShifts.sort((a, b) => a.compareTo(b));
+
+      // Find the closest shift
+      DateTime closestShift = possibleShifts.first;
+      Duration minDifference = (day.isAfter(closestShift) ? day.difference(closestShift) : closestShift.difference(day));
+
+      for (final s in possibleShifts) {
+        final currentDifference = (day.isAfter(s) ? day.difference(s) : s.difference(day));
+        if (currentDifference < minDifference) {
+          minDifference = currentDifference;
+          closestShift = s;
+        }
+      }
+      return closestShift;
+    }
+
+    // Original Clinic logic (if locationName is not null and not Morkaz)
+    if (!_shift2Enabled) return shift1;
+
+    // If day is before or at shift1 start, it's shift1
+    if (!day.isAfter(shift1)) return shift1;
+
+    // If day is after shift2 start, it's shift2
+    if (day.isAfter(shift2!)) return shift2;
+
+    // If day is between shift1 and shift2: use midpoint as separator
+    final midpoint = shift1.add(shift2.difference(shift1) ~/ 2);
+    return day.isAfter(midpoint) ? shift2 : shift1;
   }
 
   bool _isMorkazLocation(String? locationName) {
@@ -208,19 +250,23 @@ class AttendanceProvider extends ChangeNotifier {
       if (locationNameBuf.isNotEmpty) locationName = locationNameBuf.toString();
     }
 
-    // 2. Check if already checked in
-    final today = DateTime.now();
-    final alreadyIn = _records.any((r) =>
-        r.name.toLowerCase() == name.toLowerCase() &&
-        r.checkInTime.year == today.year &&
-        r.checkInTime.month == today.month &&
-        r.checkInTime.day == today.day &&
-        r.checkOutTime == null);
+    // 2. Check if already checked in for the same shift today
+    final now = DateTime.now();
+    final shiftStart = shiftStartForDay(now, locationName);
+
+    final alreadyIn = _records.any((r) {
+      if (r.name.toLowerCase() != name.toLowerCase()) return false;
+      if (r.checkInTime.year != now.year ||
+          r.checkInTime.month != now.month ||
+          r.checkInTime.day != now.day) {
+        return false;
+      }
+      // Compare against the same shift window
+      final recordShiftStart = shiftStartForDay(r.checkInTime, r.locationName);
+      return recordShiftStart == shiftStart;
+    });
 
     if (alreadyIn) return 'already_in';
-
-    final now = DateTime.now();
-    final shiftStart = _shiftStartForDay(now, locationName);
     final graceEnd = shiftStart.add(Duration(minutes: _lateThresholdMinutes));
     final late = now.isAfter(graceEnd);
     final minutesLate = late ? now.difference(shiftStart).inMinutes : 0;
@@ -232,6 +278,7 @@ class AttendanceProvider extends ChangeNotifier {
       checkInTime: now,
       status: status,
       locationName: locationName,
+      minutesLate: minutesLate,
     );
 
     // Save to Supabase
@@ -366,7 +413,7 @@ class AttendanceProvider extends ChangeNotifier {
     // Use local copy of records, updates will sync back
     for (final record in _records) {
       if (record.status == AttendanceStatus.late) {
-        final shiftStart = _shiftStartForDay(record.checkInTime, record.locationName);
+        final shiftStart = shiftStartForDay(record.checkInTime, record.locationName);
         final absentThreshold = shiftStart.add(Duration(minutes: _absentAfterMinutes));
         if (now.isAfter(absentThreshold)) {
           _markAbsent(record.id);

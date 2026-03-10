@@ -226,10 +226,18 @@ class _AllRecordsTab extends StatelessWidget {
   final AttendanceProvider provider;
   const _AllRecordsTab({required this.provider});
 
+  /// حساب دقائق التأخير الحقيقية بناءً على وقت الشيفت الصحيح
+  int _computeMinutesLate(AttendanceRecord r) {
+    final shiftStart = provider.shiftStartForDay(r.checkInTime, r.locationName);
+    final graceEnd = shiftStart.add(Duration(minutes: provider.lateThresholdMinutes));
+    if (!r.checkInTime.isAfter(graceEnd)) return 0;
+    return r.checkInTime.difference(shiftStart).inMinutes;
+  }
+
   String _statusLabel(AttendanceRecord r) {
     switch (r.status) {
       case AttendanceStatus.present: return 'حاضر';
-      case AttendanceStatus.late: return 'متأخر ${AppTheme.formatLateTime(r.minutesLate)}';
+      case AttendanceStatus.late: return 'متأخر ${AppTheme.formatLateTime(_computeMinutesLate(r))}';
       case AttendanceStatus.lateWithExcuse: return 'متأخر بعذر';
       case AttendanceStatus.lateExcusePending: return 'عذر معلق';
       case AttendanceStatus.absent: return 'غياب';
@@ -394,12 +402,16 @@ class _AllRecordsTab extends StatelessWidget {
                                 label: 'انصراف',
                                 value: DateFormat('hh:mm a', 'ar')
                                     .format(r.checkOutTime!)),
-                          if (r.minutesLate > 0 && (r.status == AttendanceStatus.late || r.status == AttendanceStatus.lateWithExcuse || r.status == AttendanceStatus.lateExcusePending))
-                            _InfoRow(
-                                icon: Icons.timer_rounded,
-                                label: 'مدة التأخير',
-                                value: AppTheme.formatLateTime(r.minutesLate),
-                                valueColor: Colors.orange),
+                          if ((r.status == AttendanceStatus.late || r.status == AttendanceStatus.lateWithExcuse || r.status == AttendanceStatus.lateExcusePending))
+                            Builder(builder: (context) {
+                              final mins = _computeMinutesLate(r);
+                              if (mins <= 0) return const SizedBox.shrink();
+                              return _InfoRow(
+                                  icon: Icons.timer_rounded,
+                                  label: 'مدة التأخير',
+                                  value: AppTheme.formatLateTime(mins),
+                                  valueColor: Colors.orange);
+                            }),
                           if (r.excuse != null)
                             _InfoRow(
                                 icon: Icons.description_rounded,

@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
@@ -17,12 +18,16 @@ void main() async {
   );
 
   await initializeDateFormatting('ar', null);
-  // Initialize local notifications
-  await NotificationService().init();
-  SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
-    statusBarColor: Colors.transparent,
-    statusBarIconBrightness: Brightness.light,
-  ));
+  
+  // Local notifications not supported on web
+  if (!kIsWeb) {
+    await NotificationService().init();
+    SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
+      statusBarColor: Colors.transparent,
+      statusBarIconBrightness: Brightness.light,
+    ));
+  }
+  
   runApp(const RadiologyAttendanceApp());
 }
 

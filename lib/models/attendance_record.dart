@@ -18,7 +18,8 @@ class AttendanceRecord {
   AttendanceStatus status;
   String? excuse;
   bool notificationSent;
-  String? locationName; // New field
+  String? locationName;
+  final int minutesLate; // مُخزَّن لحظة التسجيل بناءً على وقت الشيفت الفعلي
 
   AttendanceRecord({
     String? id,
@@ -29,22 +30,8 @@ class AttendanceRecord {
     this.excuse,
     this.notificationSent = false,
     this.locationName,
+    this.minutesLate = 0,
   }) : id = id ?? Uuid().v4();
-
-  // ... minutesLate getter ...
-
-  int get minutesLate {
-    final shiftStart = DateTime(
-      checkInTime.year,
-      checkInTime.month,
-      checkInTime.day,
-      8, 0,
-    );
-    if (checkInTime.isAfter(shiftStart)) {
-      return checkInTime.difference(shiftStart).inMinutes;
-    }
-    return 0;
-  }
 
   Map<String, dynamic> toJson() => {
     'id': id,
@@ -55,6 +42,7 @@ class AttendanceRecord {
     'excuse': excuse,
     'notificationSent': notificationSent,
     'locationName': locationName,
+    'minutesLate': minutesLate,
   };
 
   factory AttendanceRecord.fromJson(Map<String, dynamic> json) {
@@ -69,6 +57,7 @@ class AttendanceRecord {
       excuse: json['excuse'] as String?,
       notificationSent: (json['notificationSent'] as bool?) ?? false,
       locationName: json['locationName'] as String?,
+      minutesLate: (json['minutesLate'] as int?) ?? 0,
     );
   }
 }

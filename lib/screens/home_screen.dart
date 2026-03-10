@@ -1,4 +1,5 @@
 // screens/home_screen.dart
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:provider/provider.dart';
@@ -7,6 +8,7 @@ import '../utils/app_theme.dart';
 import 'checkin_screen.dart';
 import 'checkout_screen.dart';
 import 'admin_screen.dart';
+
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -26,6 +28,12 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> _requestLocationPermission() async {
+    // On web, the browser handles location permission at request time
+    if (kIsWeb) {
+      setState(() => _locationGranted = true);
+      return;
+    }
+
     // 1. Check GPS
     bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
     if (!serviceEnabled) {

@@ -48,6 +48,7 @@ class SupabaseService {
               status: AttendanceStatus.values[json['status']],
               excuse: json['excuse'],
               locationName: json['location_name'] as String?,
+              minutesLate: (json['minutes_late'] as int?) ?? 0,
             );
           }).toList(),
         );
