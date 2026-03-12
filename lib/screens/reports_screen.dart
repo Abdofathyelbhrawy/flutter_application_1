@@ -95,7 +95,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
                     style: pw.TextStyle(
                       font: arabicFont,
                       fontSize: 13,
-                      color: PdfColors.grey,
+                      color: PdfColors.grey200,
                     ),
                     textDirection: pw.TextDirection.rtl,
                   ),

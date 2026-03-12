@@ -21,7 +21,7 @@ class _AdminLoginScreenState extends State<AdminLoginScreen> {
   final _passController = TextEditingController();
   bool _obscure = true;
   String _error = '';
-  static const _adminPassword = 'admin123';
+  static const _adminPassword = 'admin552005';
 
   @override
   void dispose() {
