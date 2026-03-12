@@ -1,5 +1,5 @@
 // screens/reports_screen.dart
-import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:printing/printing.dart';
@@ -57,150 +57,152 @@ class _ReportsScreenState extends State<ReportsScreen> {
   }
 
   Future<void> _exportPdf(Map<String, EmployeeStat> stats) async {
-    final pdf = pw.Document();
-    final arabicFont = await PdfGoogleFonts.cairoRegular();
-    final arabicFontBold = await PdfGoogleFonts.cairoBold();
+    try {
+      // Load Arabic fonts (requires internet — show loading indicator)
+      pw.Font arabicFont;
+      pw.Font arabicFontBold;
+      try {
+        arabicFont = await PdfGoogleFonts.cairoRegular();
+        arabicFontBold = await PdfGoogleFonts.cairoBold();
+      } catch (_) {
+        // Fallback to built-in font if no internet
+        arabicFont = pw.Font.helvetica();
+        arabicFontBold = pw.Font.helveticaBold();
+      }
 
-    final rows = stats.values.toList()
-      ..sort((a, b) => b.total.compareTo(a.total));
+      final pdf = pw.Document();
+      final rows = stats.values.toList()
+        ..sort((a, b) => b.total.compareTo(a.total));
 
-    pdf.addPage(
-      pw.Page(
-        pageFormat: PdfPageFormat.a4,
-        textDirection: pw.TextDirection.rtl,
-        build: (ctx) => pw.Column(
-          crossAxisAlignment: pw.CrossAxisAlignment.stretch,
-          children: [
-            // Header
-            pw.Container(
-              padding: const pw.EdgeInsets.all(12),
-              decoration: pw.BoxDecoration(
-                color: PdfColor.fromHex('#7C3AED'),
-                borderRadius: pw.BorderRadius.circular(8),
+      pdf.addPage(
+        pw.Page(
+          pageFormat: PdfPageFormat.a4,
+          textDirection: pw.TextDirection.rtl,
+          build: (ctx) => pw.Column(
+            crossAxisAlignment: pw.CrossAxisAlignment.stretch,
+            children: [
+              // Header
+              pw.Container(
+                padding: const pw.EdgeInsets.all(12),
+                decoration: pw.BoxDecoration(
+                  color: PdfColor.fromHex('#7C3AED'),
+                  borderRadius: pw.BorderRadius.circular(8),
+                ),
+                child: pw.Column(
+                  children: [
+                    pw.Text(
+                      'تقرير الحضور والانصراف',
+                      style: pw.TextStyle(
+                        font: arabicFontBold,
+                        fontSize: 20,
+                        color: PdfColors.white,
+                      ),
+                      textDirection: pw.TextDirection.rtl,
+                    ),
+                    pw.SizedBox(height: 4),
+                    pw.Text(
+                      _monthLabel(),
+                      style: pw.TextStyle(
+                        font: arabicFont,
+                        fontSize: 13,
+                        color: PdfColors.grey200,
+                      ),
+                      textDirection: pw.TextDirection.rtl,
+                    ),
+                  ],
+                ),
               ),
-              child: pw.Column(
+              pw.SizedBox(height: 20),
+              // Table
+              pw.Table(
+                border: pw.TableBorder.all(color: PdfColors.grey300, width: 0.5),
+                columnWidths: {
+                  0: const pw.FlexColumnWidth(3),
+                  1: const pw.FlexColumnWidth(1.5),
+                  2: const pw.FlexColumnWidth(1.5),
+                  3: const pw.FlexColumnWidth(1.5),
+                  4: const pw.FlexColumnWidth(2),
+                },
                 children: [
-                  pw.Text(
-                    'تقرير الحضور والانصراف',
-                    style: pw.TextStyle(
-                      font: arabicFontBold,
-                      fontSize: 20,
-                      color: PdfColors.white,
+                  // Table header
+                  pw.TableRow(
+                    decoration: const pw.BoxDecoration(
+                      color: PdfColor.fromInt(0xFF1E1B4B),
                     ),
-                    textDirection: pw.TextDirection.rtl,
+                    children: ['الموظف', 'حضور', 'تأخير', 'غياب', 'إجمالي التأخير']
+                        .map(
+                          (h) => pw.Padding(
+                            padding: const pw.EdgeInsets.symmetric(vertical: 8, horizontal: 6),
+                            child: pw.Text(
+                              h,
+                              style: pw.TextStyle(font: arabicFontBold, fontSize: 11, color: PdfColors.white),
+                              textDirection: pw.TextDirection.rtl,
+                              textAlign: pw.TextAlign.center,
+                            ),
+                          ),
+                        )
+                        .toList(),
                   ),
-                  pw.SizedBox(height: 4),
-                  pw.Text(
-                    _monthLabel(),
-                    style: pw.TextStyle(
-                      font: arabicFont,
-                      fontSize: 13,
-                      color: PdfColors.grey200,
-                    ),
-                    textDirection: pw.TextDirection.rtl,
-                  ),
-                ],
-              ),
-            ),
-            pw.SizedBox(height: 20),
-            // Table
-            pw.Table(
-              border: pw.TableBorder.all(color: PdfColors.grey300, width: 0.5),
-              columnWidths: {
-                0: const pw.FlexColumnWidth(3),
-                1: const pw.FlexColumnWidth(1.5),
-                2: const pw.FlexColumnWidth(1.5),
-                3: const pw.FlexColumnWidth(1.5),
-                4: const pw.FlexColumnWidth(2),
-              },
-              children: [
-                // Table header
-                pw.TableRow(
-                  decoration: const pw.BoxDecoration(
-                    color: PdfColor.fromInt(0xFF1E1B4B),
-                  ),
-                  children:
-                      ['الموظف', 'حضور', 'تأخير', 'غياب', 'إجمالي التأخير']
+                  // Data rows
+                  ...rows.asMap().entries.map((entry) {
+                    final i = entry.key;
+                    final s = entry.value;
+                    final bg = i.isEven ? PdfColors.white : const PdfColor.fromInt(0xFFF5F3FF);
+                    return pw.TableRow(
+                      decoration: pw.BoxDecoration(color: bg),
+                      children: [
+                        s.name,
+                        '${s.present}',
+                        '${s.late}',
+                        '${s.absent}',
+                        _formatLate(s.totalLateMinutes),
+                      ]
                           .map(
-                            (h) => pw.Padding(
-                              padding: const pw.EdgeInsets.symmetric(
-                                vertical: 8,
-                                horizontal: 6,
-                              ),
+                            (val) => pw.Padding(
+                              padding: const pw.EdgeInsets.symmetric(vertical: 7, horizontal: 6),
                               child: pw.Text(
-                                h,
-                                style: pw.TextStyle(
-                                  font: arabicFontBold,
-                                  fontSize: 11,
-                                  color: PdfColors.white,
-                                ),
+                                val,
+                                style: pw.TextStyle(font: arabicFont, fontSize: 11),
                                 textDirection: pw.TextDirection.rtl,
                                 textAlign: pw.TextAlign.center,
                               ),
                             ),
                           )
                           .toList(),
-                ),
-                // Data rows
-                ...rows.asMap().entries.map((entry) {
-                  final i = entry.key;
-                  final s = entry.value;
-                  final bg = i.isEven
-                      ? PdfColors.white
-                      : const PdfColor.fromInt(0xFFF5F3FF);
-                  return pw.TableRow(
-                    decoration: pw.BoxDecoration(color: bg),
-                    children:
-                        [
-                              s.name,
-                              '${s.present}',
-                              '${s.late}',
-                              '${s.absent}',
-                              _formatLate(s.totalLateMinutes),
-                            ]
-                            .map(
-                              (val) => pw.Padding(
-                                padding: const pw.EdgeInsets.symmetric(
-                                  vertical: 7,
-                                  horizontal: 6,
-                                ),
-                                child: pw.Text(
-                                  val,
-                                  style: pw.TextStyle(
-                                    font: arabicFont,
-                                    fontSize: 11,
-                                  ),
-                                  textDirection: pw.TextDirection.rtl,
-                                  textAlign: pw.TextAlign.center,
-                                ),
-                              ),
-                            )
-                            .toList(),
-                  );
-                }),
-              ],
-            ),
-            pw.SizedBox(height: 16),
-            pw.Text(
-              'تم إنشاء التقرير بتاريخ: ${DateFormat('yyyy-MM-dd – hh:mm a', 'ar').format(DateTime.now())}',
-              style: pw.TextStyle(
-                font: arabicFont,
-                fontSize: 9,
-                color: PdfColors.grey,
+                    );
+                  }),
+                ],
               ),
-              textDirection: pw.TextDirection.rtl,
-            ),
-          ],
+              pw.SizedBox(height: 16),
+              pw.Text(
+                'تم إنشاء التقرير بتاريخ: ${DateFormat('yyyy-MM-dd – hh:mm a', 'ar').format(DateTime.now())}',
+                style: pw.TextStyle(font: arabicFont, fontSize: 9, color: PdfColors.grey),
+                textDirection: pw.TextDirection.rtl,
+              ),
+            ],
+          ),
         ),
-      ),
-    );
+      );
 
-    final Uint8List bytes = await pdf.save();
-    await Printing.sharePdf(
-      bytes: bytes,
-      filename: 'تقرير_${_monthLabel()}.pdf',
-    );
+      // فتح شاشة معاينة + حفظ/طباعة
+      if (!mounted) return;
+      await Printing.layoutPdf(
+        onLayout: (_) async => pdf.save(),
+        name: 'تقرير_${_monthLabel()}.pdf',
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('خطأ في إنشاء PDF: ${e.toString()}', textAlign: TextAlign.center),
+          backgroundColor: Colors.red,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        ),
+      );
+    }
   }
+
 
   @override
   Widget build(BuildContext context) {
