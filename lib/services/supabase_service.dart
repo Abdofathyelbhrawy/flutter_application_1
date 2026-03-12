@@ -41,9 +41,9 @@ class SupabaseService {
             return AttendanceRecord(
               id: json['id'],
               name: json['name'],
-              checkInTime: DateTime.parse(json['check_in_time']),
+              checkInTime: DateTime.parse(json['check_in_time']).toLocal(),
               checkOutTime: json['check_out_time'] != null
-                  ? DateTime.parse(json['check_out_time'])
+                  ? DateTime.parse(json['check_out_time']).toLocal()
                   : null,
               status: AttendanceStatus.values[json['status']],
               excuse: json['excuse'],
