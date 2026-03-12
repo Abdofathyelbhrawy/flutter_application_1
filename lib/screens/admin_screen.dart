@@ -8,6 +8,7 @@ import '../utils/app_theme.dart';
 import '../services/notification_service.dart';
 import 'admin_settings_screen.dart';
 import 'excuse_screen.dart';
+import 'reports_screen.dart';
 
 class AdminLoginScreen extends StatefulWidget {
   const AdminLoginScreen({super.key});
@@ -112,7 +113,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> with Single
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 2, vsync: this);
+    _tabController = TabController(length: 3, vsync: this);
     NotificationService().showNotifications = true;
   }
 
@@ -158,6 +159,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> with Single
                 ),
                 text: 'الإشعارات',
               ),
+              const Tab(text: 'التقارير', icon: Icon(Icons.bar_chart_rounded)),
             ],
           ),
         ),
@@ -170,6 +172,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> with Single
                 children: [
                   _AllRecordsTab(provider: provider),
                   _NotificationsTab(provider: provider),
+                  const ReportsScreen(),
                 ],
               ),
             ),
@@ -413,11 +416,16 @@ class _AllRecordsTab extends StatelessWidget {
                                   valueColor: Colors.orange);
                             }),
                           if (r.excuse != null)
-                            _InfoRow(
+                            GestureDetector(
+                              onTap: () => _showFullExcuseDialog(context, r.excuse!),
+                              child: _InfoRow(
                                 icon: Icons.description_rounded,
                                 label: 'العذر',
                                 value: r.excuse!,
-                                valueColor: Colors.blue),
+                                valueColor: Colors.blue,
+                                maxLines: 3,
+                              ),
+                            ),
                           if (r.status == AttendanceStatus.lateExcusePending) ...[
                              _InfoRow(
                                 icon: Icons.hourglass_top_rounded,
@@ -478,24 +486,66 @@ class _AllRecordsTab extends StatelessWidget {
 }
 
 
+void _showFullExcuseDialog(BuildContext context, String excuse) {
+  showDialog(
+    context: context,
+    builder: (ctx) => AlertDialog(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      backgroundColor: AppTheme.cardColor,
+      title: const Row(
+        children: [
+          Icon(Icons.description_rounded, color: Colors.blue, size: 22),
+          SizedBox(width: 8),
+          Text('العذر', style: TextStyle(color: Colors.white)),
+        ],
+      ),
+      content: SingleChildScrollView(
+        child: Text(
+          excuse,
+          style: const TextStyle(color: Colors.white70, fontSize: 15, height: 1.6),
+        ),
+      ),
+      actionsAlignment: MainAxisAlignment.center,
+      actions: [
+        ElevatedButton(
+          onPressed: () => Navigator.pop(ctx),
+          style: ElevatedButton.styleFrom(
+            backgroundColor: Colors.blue,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          ),
+          child: const Text('إغلاق', style: TextStyle(color: Colors.white)),
+        ),
+      ],
+    ),
+  );
+}
+
 class _InfoRow extends StatelessWidget {
   final IconData icon;
   final String label;
   final String value;
   final Color? valueColor;
-  const _InfoRow({required this.icon, required this.label, required this.value, this.valueColor});
+  final int? maxLines;
+  const _InfoRow({required this.icon, required this.label, required this.value, this.valueColor, this.maxLines});
 
   @override
   Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4),
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Icon(icon, color: Colors.white38, size: 16),
           const SizedBox(width: 8),
           Text('$label: ', style: const TextStyle(color: Colors.white54, fontSize: 13)),
           Expanded(
-            child: Text(value, style: TextStyle(color: valueColor ?? Colors.white70, fontSize: 13), overflow: TextOverflow.ellipsis),
+            child: Text(
+              value,
+              style: TextStyle(color: valueColor ?? Colors.white70, fontSize: 13),
+              maxLines: maxLines,
+              overflow: maxLines != null ? TextOverflow.ellipsis : null,
+              softWrap: true,
+            ),
           ),
         ],
       ),

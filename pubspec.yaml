@@ -18,6 +18,8 @@ dependencies:
   supabase_flutter: ^2.8.4
   geolocator: ^13.0.0
   flutter_launcher_icons: ^0.13.1
+  pdf: ^3.11.1
+  printing: ^5.13.1
 
 dev_dependencies:
   flutter_test:
