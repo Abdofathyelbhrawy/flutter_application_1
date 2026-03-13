@@ -309,10 +309,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
           const SizedBox(height: 12),
         ],
 
-        // 📊 Monthly Comparison Bar Chart
-        if (rows.isNotEmpty) _buildEmployeesChart(rows),
-
-        // Table
+        // Table & Chart Scrollable Area
         Expanded(
           child: rows.isEmpty
               ? const Center(
@@ -333,14 +330,24 @@ class _ReportsScreenState extends State<ReportsScreen> {
                   ),
                 )
               : SingleChildScrollView(
-                  padding: const EdgeInsets.symmetric(horizontal: 12),
                   child: Column(
-                    children: rows
-                        .map(
-                          (s) =>
-                              _EmployeeStatCard(s: s, formatLate: _formatLate),
-                        )
-                        .toList(),
+                    children: [
+                      // 📊 Monthly Comparison Bar Chart
+                      _buildEmployeesChart(rows),
+                      
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 12),
+                        child: Column(
+                          children: rows
+                              .map(
+                                (s) =>
+                                    _EmployeeStatCard(s: s, formatLate: _formatLate),
+                              )
+                              .toList(),
+                        ),
+                      ),
+                      const SizedBox(height: 20),
+                    ],
                   ),
                 ),
         ),
