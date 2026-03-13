@@ -132,8 +132,9 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> with Single
     return Scaffold(
         backgroundColor: AppTheme.backgroundColor,
         appBar: AppBar(
-          backgroundColor: AppTheme.cardColor,
-          title: const Text('لوحة التحكم', style: TextStyle(color: Colors.white)),
+          backgroundColor: AppTheme.backgroundColor,
+          elevation: 0,
+          title: const Text('لوحة التحكم', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
           leading: IconButton(
             icon: const Icon(Icons.logout_rounded, color: Colors.white70),
             onPressed: () => Navigator.pop(context),
@@ -147,8 +148,10 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> with Single
           bottom: TabBar(
             controller: _tabController,
             indicatorColor: AppTheme.primaryColor,
+            indicatorSize: TabBarIndicatorSize.tab,
             labelColor: Colors.white,
             unselectedLabelColor: Colors.white54,
+            dividerColor: Colors.transparent,
             tabs: [
               const Tab(text: 'السجل الكامل', icon: Icon(Icons.list_alt_rounded)),
               Tab(
@@ -296,12 +299,12 @@ class _AllRecordsTab extends StatelessWidget {
           children: [
             // Date header
             Container(
-              margin: EdgeInsets.only(bottom: 8, top: di == 0 ? 0 : 16),
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+              margin: EdgeInsets.only(bottom: 12, top: di == 0 ? 0 : 16),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               decoration: BoxDecoration(
                 gradient: isToday ? AppTheme.primaryGradient : null,
                 color: isToday ? null : AppTheme.cardColor,
-                borderRadius: BorderRadius.circular(12),
+                borderRadius: BorderRadius.circular(16),
               ),
               child: Row(
                 children: [

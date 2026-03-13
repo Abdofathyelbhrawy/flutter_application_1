@@ -132,6 +132,7 @@ class _ExcuseScreenState extends State<ExcuseScreen> {
                   controller: _excuseController,
                   textAlign: TextAlign.right,
                   maxLines: 5,
+                  cursorColor: Colors.blue,
                   style: const TextStyle(color: Colors.white),
                   decoration: InputDecoration(
                     hintText: 'مثال: كان فيه زحمة / موعد عند الطبيب...',

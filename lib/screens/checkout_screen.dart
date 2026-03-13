@@ -64,6 +64,7 @@ class _CheckOutScreenState extends State<CheckOutScreen>
   }
 
   Future<void> _handleCheckOut() async {
+    FocusScope.of(context).unfocus();
     final name = _nameController.text.trim();
     if (name.isEmpty) {
       _showSnackBar('من فضلك اكتب اسمك', Colors.orange);
@@ -138,9 +139,20 @@ class _CheckOutScreenState extends State<CheckOutScreen>
   void _showSnackBar(String msg, Color color) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text(msg, textAlign: TextAlign.center),
+        content: Row(
+          children: [
+            Icon(
+              color.computeLuminance() > 0.5 ? Icons.warning_rounded : Icons.info_outline_rounded,
+              color: Colors.white,
+            ),
+            const SizedBox(width: 12),
+            Expanded(child: Text(msg, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold))),
+          ],
+        ),
         backgroundColor: color,
         behavior: SnackBarBehavior.floating,
+        margin: const EdgeInsets.only(top: kToolbarHeight, left: 16, right: 16),
+        dismissDirection: DismissDirection.horizontal,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       ),
     );
@@ -243,6 +255,7 @@ class _CheckOutScreenState extends State<CheckOutScreen>
                             prefixIcon: const Icon(Icons.person_rounded, color: Colors.white54),
                             filled: true,
                             fillColor: AppTheme.backgroundColor,
+                            contentPadding: const EdgeInsets.symmetric(vertical: 18, horizontal: 16),
                             border: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(14),
                               borderSide: BorderSide.none,

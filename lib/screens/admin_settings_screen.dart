@@ -151,11 +151,16 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen> {
               controller: nameCtrl,
               textAlign: TextAlign.right,
               style: const TextStyle(color: Colors.white),
-              decoration: const InputDecoration(
+              decoration: InputDecoration(
                 hintText: 'اسم الموقع (مثال: الفرع الرئيسي)',
-                hintStyle: TextStyle(color: Colors.white38),
+                hintStyle: const TextStyle(color: Colors.white38),
                 filled: true,
                 fillColor: AppTheme.backgroundColor,
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: const BorderSide(color: AppTheme.primaryColor, width: 2),
+                ),
               ),
             ),
             const SizedBox(height: 10),
@@ -163,11 +168,16 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen> {
               controller: latCtrl,
               keyboardType: const TextInputType.numberWithOptions(decimal: true),
               style: const TextStyle(color: Colors.white),
-              decoration: const InputDecoration(
+              decoration: InputDecoration(
                 hintText: 'Latitude (خط العرض)',
-                hintStyle: TextStyle(color: Colors.white38),
+                hintStyle: const TextStyle(color: Colors.white38),
                 filled: true,
                 fillColor: AppTheme.backgroundColor,
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: const BorderSide(color: AppTheme.primaryColor, width: 2),
+                ),
               ),
             ),
             const SizedBox(height: 10),
@@ -175,11 +185,16 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen> {
               controller: lngCtrl,
               keyboardType: const TextInputType.numberWithOptions(decimal: true),
               style: const TextStyle(color: Colors.white),
-              decoration: const InputDecoration(
+              decoration: InputDecoration(
                 hintText: 'Longitude (خط الطول)',
-                hintStyle: TextStyle(color: Colors.white38),
+                hintStyle: const TextStyle(color: Colors.white38),
                 filled: true,
                 fillColor: AppTheme.backgroundColor,
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: const BorderSide(color: AppTheme.primaryColor, width: 2),
+                ),
               ),
             ),
           ],
@@ -226,8 +241,8 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen> {
     return Scaffold(
         backgroundColor: AppTheme.backgroundColor,
         appBar: AppBar(
-          backgroundColor: AppTheme.cardColor,
-          title: const Text('الإعدادات', style: TextStyle(color: Colors.white)),
+          backgroundColor: AppTheme.backgroundColor,
+          title: const Text('الإعدادات', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
           leading: IconButton(
             icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.white),
             onPressed: () => Navigator.pop(context),

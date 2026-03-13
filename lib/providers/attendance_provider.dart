@@ -149,18 +149,22 @@ class AttendanceProvider extends ChangeNotifier {
 
     candidateShifts.sort((a, b) => a.compareTo(b));
 
-    // اختر أحدث شيفت بدأ قبل وقت التسجيل أو عنده
-    // = الشيفت اللي الموظف ينتمي إليه فعلاً
-    DateTime? bestShift;
-    for (final s in candidateShifts) {
-      if (!day.isBefore(s)) {
-        // day >= s → الموظف دخل بعد أو في وقت هذا الشيفت
+    // اختر الشيفت الذي يقلل الفارق الزمني (absolute difference) بين وقت الدخول وبداية الشيفت.
+    // هذا يحل مشكلة تسجيل الدخول المبكر (early check-in) حيث لم تكن الشروط السابقة تلتقطه 
+    // بشكل صحيح مما كان يؤدي لحساب تأخير ضخم على الشيفت السابق.
+    DateTime bestShift = candidateShifts.first;
+    int minDiff = (day.difference(bestShift).inMinutes).abs();
+
+    for (int i = 1; i < candidateShifts.length; i++) {
+      final s = candidateShifts[i];
+      final diff = (day.difference(s).inMinutes).abs();
+      if (diff < minDiff) {
+        minDiff = diff;
         bestShift = s;
       }
     }
 
-    // لو الموظف دخل قبل كل الشيفتات → نسبه للأول
-    return bestShift ?? candidateShifts.first;
+    return bestShift;
   }
 
   bool _isMorkazLocation(String? locationName) {
@@ -278,11 +282,11 @@ class AttendanceProvider extends ChangeNotifier {
     
     final record = _records[idx];
     record.checkOutTime = DateTime.now();
-    
-    if (record.status != AttendanceStatus.late && 
-        record.status != AttendanceStatus.lateWithExcuse) {
-      record.status = AttendanceStatus.checkedOut;
-    }
+        if (record.status != AttendanceStatus.late && 
+          record.status != AttendanceStatus.lateWithExcuse &&
+          record.status != AttendanceStatus.lateExcusePending) {
+        record.status = AttendanceStatus.checkedOut;
+      }
 
     await _supabaseService.updateRecord(record);
     _notifService.showCheckOutNotification(name: record.name);
@@ -585,7 +589,7 @@ class AttendanceProvider extends ChangeNotifier {
     final tr = todayRecords;
     return {
       'present': tr.where((r) => r.status == AttendanceStatus.present || r.status == AttendanceStatus.checkedOut).length,
-      'late': tr.where((r) => r.status == AttendanceStatus.late).length,
+      'late': tr.where((r) => r.status == AttendanceStatus.late || r.status == AttendanceStatus.lateExcusePending).length,
       'lateWithExcuse': tr.where((r) => r.status == AttendanceStatus.lateWithExcuse).length,
       'absent': tr.where((r) => r.status == AttendanceStatus.absent).length,
     };
@@ -621,7 +625,7 @@ class AttendanceProvider extends ChangeNotifier {
         case AttendanceStatus.lateExcusePending:
           stat.late++;
           final shiftStart = shiftStartForDay(r.checkInTime, r.locationName);
-          final mins = r.checkInTime.difference(shiftStart).inMinutes;
+          final mins = (r.checkInTime.difference(shiftStart).inMinutes).abs(); // Ensures late minutes are always non-negative.
           if (mins > 0) stat.totalLateMinutes += mins;
           break;
         case AttendanceStatus.absent:

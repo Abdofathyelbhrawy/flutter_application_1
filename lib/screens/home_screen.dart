@@ -175,6 +175,7 @@ class _HomeScreenState extends State<HomeScreen> {
       bottomNavigationBar: Container(
         decoration: BoxDecoration(
           color: AppTheme.cardColor,
+          border: Border(top: BorderSide(color: Colors.white.withAlpha(15), width: 1.5)),
           boxShadow: [
             BoxShadow(color: Colors.black.withAlpha(77), blurRadius: 10, offset: const Offset(0, -4))
           ],
