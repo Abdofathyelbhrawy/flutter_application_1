@@ -268,6 +268,29 @@ class _AllRecordsTab extends StatelessWidget {
     return DateFormat('EEEE، d MMMM yyyy', 'ar').format(dt);
   }
 
+  Widget _buildTodayChart(Map<String, int> stats) {
+    return Container(
+      color: AppTheme.cardColor,
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text('احصائيات اليوم', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14)),
+          const SizedBox(height: 12),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceAround,
+            children: [
+              _ChartLegend(color: Colors.green, text: 'حاضر: ${stats['present']}'),
+              _ChartLegend(color: Colors.orange, text: 'متأخر: ${stats['late']}'),
+              _ChartLegend(color: Colors.blue, text: 'بعذر: ${stats['lateWithExcuse']}'),
+              _ChartLegend(color: Colors.red, text: 'غائب: ${stats['absent']}'),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final byDate = provider.recordsByDate;
@@ -286,204 +309,211 @@ class _AllRecordsTab extends StatelessWidget {
     final dates = byDate.keys.toList()..sort((a, b) => b.compareTo(a));
     final todayKey = DateFormat('yyyy-MM-dd').format(DateTime.now());
 
-    return ListView.builder(
-      padding: const EdgeInsets.all(16),
-      itemCount: dates.length,
-      itemBuilder: (ctx, di) {
-        final dateKey = dates[di];
-        final dayRecords = byDate[dateKey]!;
-        final isToday = dateKey == todayKey;
+    return Column(
+      children: [
+        if (provider.todayRecords.isNotEmpty) _buildTodayChart(provider.todayStats),
+        Expanded(
+          child: ListView.builder(
+            padding: const EdgeInsets.all(16),
+            itemCount: dates.length,
+            itemBuilder: (ctx, di) {
+              final dateKey = dates[di];
+              final dayRecords = byDate[dateKey]!;
+              final isToday = dateKey == todayKey;
 
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            // Date header
-            Container(
-              margin: EdgeInsets.only(bottom: 12, top: di == 0 ? 0 : 16),
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-              decoration: BoxDecoration(
-                gradient: isToday ? AppTheme.primaryGradient : null,
-                color: isToday ? null : AppTheme.cardColor,
-                borderRadius: BorderRadius.circular(16),
-              ),
-              child: Row(
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  Icon(Icons.calendar_today_rounded,
-                      color: isToday ? Colors.white : Colors.white54, size: 16),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      isToday ? 'اليوم — ${_arabicDate(dateKey)}' : _arabicDate(dateKey),
-                      style: TextStyle(
-                        color: isToday ? Colors.white : Colors.white70,
-                        fontWeight: isToday ? FontWeight.bold : FontWeight.normal,
-                        fontSize: 13,
-                      ),
+                  // Date header
+                  Container(
+                    margin: EdgeInsets.only(bottom: 12, top: di == 0 ? 0 : 16),
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    decoration: BoxDecoration(
+                      gradient: isToday ? AppTheme.primaryGradient : null,
+                      color: isToday ? null : AppTheme.cardColor,
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(Icons.calendar_today_rounded,
+                            color: isToday ? Colors.white : Colors.white54, size: 16),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            isToday ? 'اليوم — ${_arabicDate(dateKey)}' : _arabicDate(dateKey),
+                            style: TextStyle(
+                              color: isToday ? Colors.white : Colors.white70,
+                              fontWeight: isToday ? FontWeight.bold : FontWeight.normal,
+                              fontSize: 13,
+                            ),
+                          ),
+                        ),
+                        Text('${dayRecords.length} موظف',
+                            style: TextStyle(
+                                color: isToday ? Colors.white70 : Colors.white38,
+                                fontSize: 11)),
+                      ],
                     ),
                   ),
-                  Text('${dayRecords.length} موظف',
-                      style: TextStyle(
-                          color: isToday ? Colors.white70 : Colors.white38,
-                          fontSize: 11)),
-                ],
-              ),
-            ),
-            // Records for this date
-            ...dayRecords.map((r) {
-              final color = _statusColor(r);
-              return Container(
-                margin: const EdgeInsets.only(bottom: 8),
-                decoration: BoxDecoration(
-                  color: AppTheme.cardColor,
-                  borderRadius: BorderRadius.circular(14),
-                  border: Border.all(color: color.withAlpha(77)),
-                ),
-                child: ExpansionTile(
-                  collapsedBackgroundColor: Colors.transparent,
-                  backgroundColor: Colors.transparent,
-                  leading: CircleAvatar(
-                    backgroundColor: color.withAlpha(51),
-                    child: Text(r.name.isNotEmpty ? r.name[0] : '؟',
-                        style: TextStyle(color: color, fontWeight: FontWeight.bold)),
-                  ),
-                  title: Text(r.name,
-                      style: const TextStyle(
-                          color: Colors.white, fontWeight: FontWeight.bold)),
-                  subtitle: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const SizedBox(height: 2),
-                      Row(
-                        children: [
-                          const Icon(Icons.login_rounded, color: Colors.white38, size: 13),
-                          const SizedBox(width: 4),
-                          Text(
-                            DateFormat('hh:mm a', 'ar').format(r.checkInTime),
-                            style: const TextStyle(color: Colors.white70, fontSize: 12, fontWeight: FontWeight.w600),
-                          ),
-                          const SizedBox(width: 8),
-                          const Icon(Icons.calendar_today_rounded, color: Colors.white24, size: 11),
-                          const SizedBox(width: 3),
-                          Flexible(
-                            child: Text(
-                              DateFormat('EEEE، d MMM yyyy', 'ar').format(r.checkInTime),
-                              style: const TextStyle(color: Colors.white38, fontSize: 11),
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ),
-                        ],
+                  // Records for this date
+                  ...dayRecords.map((r) {
+                    final color = _statusColor(r);
+                    return Container(
+                      margin: const EdgeInsets.only(bottom: 8),
+                      decoration: BoxDecoration(
+                        color: AppTheme.cardColor,
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(color: color.withAlpha(77)),
                       ),
-                      if (r.locationName != null) ...[
-                        const SizedBox(height: 2),
-                        Row(
+                      child: ExpansionTile(
+                        collapsedBackgroundColor: Colors.transparent,
+                        backgroundColor: Colors.transparent,
+                        leading: CircleAvatar(
+                          backgroundColor: color.withAlpha(51),
+                          child: Text(r.name.isNotEmpty ? r.name[0] : '؟',
+                              style: TextStyle(color: color, fontWeight: FontWeight.bold)),
+                        ),
+                        title: Text(r.name,
+                            style: const TextStyle(
+                                color: Colors.white, fontWeight: FontWeight.bold)),
+                        subtitle: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            const Icon(Icons.location_on_rounded, color: Colors.lightBlueAccent, size: 13),
-                            const SizedBox(width: 3),
-                            Text(
-                              r.locationName!,
-                              style: const TextStyle(color: Colors.lightBlueAccent, fontSize: 11),
+                            const SizedBox(height: 2),
+                            Row(
+                              children: [
+                                const Icon(Icons.login_rounded, color: Colors.white38, size: 13),
+                                const SizedBox(width: 4),
+                                Text(
+                                  DateFormat('hh:mm a', 'ar').format(r.checkInTime),
+                                  style: const TextStyle(color: Colors.white70, fontSize: 12, fontWeight: FontWeight.w600),
+                                ),
+                                const SizedBox(width: 8),
+                                const Icon(Icons.calendar_today_rounded, color: Colors.white24, size: 11),
+                                const SizedBox(width: 3),
+                                Flexible(
+                                  child: Text(
+                                    DateFormat('EEEE، d MMM yyyy', 'ar').format(r.checkInTime),
+                                    style: const TextStyle(color: Colors.white38, fontSize: 11),
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                              ],
                             ),
+                            if (r.locationName != null) ...[
+                              const SizedBox(height: 2),
+                              Row(
+                                children: [
+                                  const Icon(Icons.location_on_rounded, color: Colors.lightBlueAccent, size: 13),
+                                  const SizedBox(width: 3),
+                                  Text(
+                                    r.locationName!,
+                                    style: const TextStyle(color: Colors.lightBlueAccent, fontSize: 11),
+                                  ),
+                                ],
+                              ),
+                            ],
                           ],
                         ),
-                      ],
-                    ],
-                  ),
-                  trailing: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                    decoration: BoxDecoration(
-                        color: color.withAlpha(51),
-                        borderRadius: BorderRadius.circular(20)),
-                    child: Text(_statusLabel(r),
-                        style: TextStyle(color: color, fontSize: 11)),
-                  ),
-                  children: [
-                    Padding(
-                      padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        trailing: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                          decoration: BoxDecoration(
+                              color: color.withAlpha(51),
+                              borderRadius: BorderRadius.circular(20)),
+                          child: Text(_statusLabel(r),
+                              style: TextStyle(color: color, fontSize: 11)),
+                        ),
                         children: [
-                          if (r.checkOutTime != null)
-                            _InfoRow(
-                                icon: Icons.logout_rounded,
-                                label: 'انصراف',
-                                value: DateFormat('hh:mm a', 'ar')
-                                    .format(r.checkOutTime!)),
-                          if ((r.status == AttendanceStatus.late || r.status == AttendanceStatus.lateWithExcuse || r.status == AttendanceStatus.lateExcusePending))
-                            Builder(builder: (context) {
-                              final mins = _computeMinutesLate(r);
-                              if (mins <= 0) return const SizedBox.shrink();
-                              return _InfoRow(
-                                  icon: Icons.timer_rounded,
-                                  label: 'مدة التأخير',
-                                  value: AppTheme.formatLateTime(mins),
-                                  valueColor: Colors.orange);
-                            }),
-                          if (r.excuse != null)
-                            GestureDetector(
-                              onTap: () => _showFullExcuseDialog(context, r.excuse!),
-                              child: _InfoRow(
-                                icon: Icons.description_rounded,
-                                label: 'العذر',
-                                value: r.excuse!,
-                                valueColor: Colors.blue,
-                                maxLines: 3,
-                              ),
-                            ),
-                          if (r.status == AttendanceStatus.lateExcusePending) ...[
-                             _InfoRow(
-                                icon: Icons.hourglass_top_rounded,
-                                label: 'الحالة',
-                                value: 'في انتظار الموافقة',
-                                valueColor: Colors.orange),
-                             const SizedBox(height: 12),
-                             Row(
-                               children: [
-                                 Expanded(
-                                   child: ElevatedButton.icon(
-                                     onPressed: () => provider.justifyExcuse(r.id, true),
-                                     icon: const Icon(Icons.check_circle_rounded, color: Colors.white, size: 18),
-                                     label: const Text('قبول العذر', style: TextStyle(color: Colors.white)),
-                                     style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
+                          Padding(
+                            padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.stretch,
+                              children: [
+                                if (r.checkOutTime != null)
+                                  _InfoRow(
+                                      icon: Icons.logout_rounded,
+                                      label: 'انصراف',
+                                      value: DateFormat('hh:mm a', 'ar')
+                                          .format(r.checkOutTime!)),
+                                if ((r.status == AttendanceStatus.late || r.status == AttendanceStatus.lateWithExcuse || r.status == AttendanceStatus.lateExcusePending))
+                                  Builder(builder: (context) {
+                                    final mins = _computeMinutesLate(r);
+                                    if (mins <= 0) return const SizedBox.shrink();
+                                    return _InfoRow(
+                                        icon: Icons.timer_rounded,
+                                        label: 'مدة التأخير',
+                                        value: AppTheme.formatLateTime(mins),
+                                        valueColor: Colors.orange);
+                                  }),
+                                if (r.excuse != null)
+                                  GestureDetector(
+                                    onTap: () => _showFullExcuseDialog(context, r.excuse!),
+                                    child: _InfoRow(
+                                      icon: Icons.description_rounded,
+                                      label: 'العذر',
+                                      value: r.excuse!,
+                                      valueColor: Colors.blue,
+                                      maxLines: 3,
+                                    ),
+                                  ),
+                                if (r.status == AttendanceStatus.lateExcusePending) ...[
+                                   _InfoRow(
+                                      icon: Icons.hourglass_top_rounded,
+                                      label: 'الحالة',
+                                      value: 'في انتظار الموافقة',
+                                      valueColor: Colors.orange),
+                                   const SizedBox(height: 12),
+                                   Row(
+                                     children: [
+                                       Expanded(
+                                         child: ElevatedButton.icon(
+                                           onPressed: () => provider.justifyExcuse(r.id, true),
+                                           icon: const Icon(Icons.check_circle_rounded, color: Colors.white, size: 18),
+                                           label: const Text('قبول العذر', style: TextStyle(color: Colors.white)),
+                                           style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
+                                         ),
+                                       ),
+                                       const SizedBox(width: 8),
+                                       Expanded(
+                                         child: ElevatedButton.icon(
+                                           onPressed: () => provider.justifyExcuse(r.id, false),
+                                           icon: const Icon(Icons.cancel_rounded, color: Colors.white, size: 18),
+                                           label: const Text('رفض (غياب)', style: TextStyle(color: Colors.white)),
+                                           style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+                                         ),
+                                       ),
+                                     ],
                                    ),
-                                 ),
-                                 const SizedBox(width: 8),
-                                 Expanded(
-                                   child: ElevatedButton.icon(
-                                     onPressed: () => provider.justifyExcuse(r.id, false),
-                                     icon: const Icon(Icons.cancel_rounded, color: Colors.white, size: 18),
-                                     label: const Text('رفض (غياب)', style: TextStyle(color: Colors.white)),
-                                     style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-                                   ),
-                                 ),
-                               ],
-                             ),
-                          ] else if (r.status == AttendanceStatus.late) ...[
-                            const SizedBox(height: 8),
-                            ElevatedButton.icon(
-                              onPressed: () => Navigator.of(context).push(
-                                  MaterialPageRoute(
-                                      builder: (_) => ExcuseScreen(record: r))),
-                              icon: const Icon(Icons.edit_note_rounded,
-                                  color: Colors.white, size: 18),
-                              label: const Text('إضافة عذر (أدمن)',
-                                  style: TextStyle(color: Colors.white)),
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: Colors.blue,
-                                shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(10)),
-                              ),
+                                ] else if (r.status == AttendanceStatus.late) ...[
+                                  const SizedBox(height: 8),
+                                  ElevatedButton.icon(
+                                    onPressed: () => Navigator.of(context).push(
+                                        MaterialPageRoute(
+                                            builder: (_) => ExcuseScreen(record: r))),
+                                    icon: const Icon(Icons.edit_note_rounded,
+                                        color: Colors.white, size: 18),
+                                    label: const Text('إضافة عذر (أدمن)',
+                                        style: TextStyle(color: Colors.white)),
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: Colors.blue,
+                                      shape: RoundedRectangleBorder(
+                                          borderRadius: BorderRadius.circular(10)),
+                                    ),
+                                  ),
+                                ],
+                              ],
                             ),
-                          ],
+                          ),
                         ],
                       ),
-                    ),
-                  ],
-                ),
+                    );
+                  }).toList(),
+                ],
               );
-            }),
-          ],
-        );
-      },
+            },
+          ),
+        ),
+      ],
     );
   }
 }
@@ -550,6 +580,26 @@ class _InfoRow extends StatelessWidget {
               softWrap: true,
             ),
           ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ChartLegend extends StatelessWidget {
+  final Color color;
+  final String text;
+  const _ChartLegend({required this.color, required this.text});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        children: [
+          Container(width: 12, height: 12, decoration: BoxDecoration(color: color, shape: BoxShape.circle)),
+          const SizedBox(width: 6),
+          Text(text, style: const TextStyle(color: Colors.white54, fontSize: 12)),
         ],
       ),
     );

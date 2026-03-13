@@ -2,6 +2,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:fl_chart/fl_chart.dart';
 import 'package:printing/printing.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
@@ -308,6 +309,9 @@ class _ReportsScreenState extends State<ReportsScreen> {
           const SizedBox(height: 12),
         ],
 
+        // 📊 Monthly Comparison Bar Chart
+        if (rows.isNotEmpty) _buildEmployeesChart(rows),
+
         // Table
         Expanded(
           child: rows.isEmpty
@@ -340,6 +344,125 @@ class _ReportsScreenState extends State<ReportsScreen> {
                   ),
                 ),
         ),
+      ],
+    );
+  }
+
+  Widget _buildEmployeesChart(List<EmployeeStat> rows) {
+    // Only show up to 8 employees to avoid layout squeezing, sorted by total attendance
+    final topRows = rows.take(8).toList();
+    if (topRows.isEmpty) return const SizedBox.shrink();
+
+    return Container(
+      height: 220,
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      padding: const EdgeInsets.only(top: 16, right: 16, left: 8, bottom: 8),
+      decoration: BoxDecoration(color: AppTheme.cardColor, borderRadius: BorderRadius.circular(14)),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          const Text('مقارنة أداء الموظفين', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13)),
+          const SizedBox(height: 16),
+          Expanded(
+            child: BarChart(
+              BarChartData(
+                alignment: BarChartAlignment.spaceAround,
+                maxY: (topRows.map((e) => e.total).reduce((a, b) => a > b ? a : b) + 2).toDouble(),
+                barTouchData: BarTouchData(enabled: false),
+                titlesData: FlTitlesData(
+                  show: true,
+                  bottomTitles: AxisTitles(
+                    sideTitles: SideTitles(
+                      showTitles: true,
+                      getTitlesWidget: (double value, TitleMeta meta) {
+                        if (value.toInt() >= topRows.length) return const SizedBox.shrink();
+                        final name = topRows[value.toInt()].name;
+                        final shortName = name.split(' ').first;
+                        return Padding(
+                          padding: const EdgeInsets.only(top: 8.0),
+                          child: Text(shortName, style: const TextStyle(color: Colors.white54, fontSize: 10), overflow: TextOverflow.ellipsis),
+                        );
+                      },
+                      reservedSize: 28,
+                    ),
+                  ),
+                  leftTitles: AxisTitles(
+                    sideTitles: SideTitles(
+                      showTitles: true,
+                      reservedSize: 28,
+                      getTitlesWidget: (value, meta) {
+                        if (value == 0) return const SizedBox.shrink();
+                        return Text(value.toInt().toString(), style: const TextStyle(color: Colors.white38, fontSize: 10));
+                      },
+                    ),
+                  ),
+                  topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                  rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                ),
+                gridData: FlGridData(
+                  show: true,
+                  drawVerticalLine: false,
+                  getDrawingHorizontalLine: (value) => FlLine(color: Colors.white10, strokeWidth: 1),
+                ),
+                borderData: FlBorderData(show: false),
+                barGroups: topRows.asMap().entries.map((e) {
+                  final index = e.key;
+                  final stat = e.value;
+                  return BarChartGroupData(
+                    x: index,
+                    barRods: [
+                      BarChartRodData(
+                        toY: stat.present.toDouble(),
+                        color: Colors.green,
+                        width: 6,
+                        borderRadius: BorderRadius.circular(2),
+                      ),
+                      BarChartRodData(
+                        toY: stat.late.toDouble(),
+                        color: Colors.orange,
+                        width: 6,
+                        borderRadius: BorderRadius.circular(2),
+                      ),
+                      BarChartRodData(
+                        toY: stat.absent.toDouble(),
+                        color: Colors.red,
+                        width: 6,
+                        borderRadius: BorderRadius.circular(2),
+                      ),
+                    ],
+                  );
+                }).toList(),
+              ),
+            ),
+          ),
+          const SizedBox(height: 4),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              _Legend(color: Colors.green, text: 'حاضر'),
+              const SizedBox(width: 12),
+              _Legend(color: Colors.orange, text: 'متأخر'),
+              const SizedBox(width: 12),
+              _Legend(color: Colors.red, text: 'غائب'),
+            ],
+          )
+        ],
+      ),
+    );
+  }
+}
+
+class _Legend extends StatelessWidget {
+  final Color color;
+  final String text;
+  const _Legend({required this.color, required this.text});
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Container(width: 8, height: 8, decoration: BoxDecoration(color: color, shape: BoxShape.circle)),
+        const SizedBox(width: 4),
+        Text(text, style: const TextStyle(color: Colors.white54, fontSize: 10)),
       ],
     );
   }
