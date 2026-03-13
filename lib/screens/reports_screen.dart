@@ -185,11 +185,12 @@ class _ReportsScreenState extends State<ReportsScreen> {
         ),
       );
 
-      // فتح شاشة معاينة + حفظ/طباعة
+      // فتح شاشة مشاركة أو تحميل الحفظ (مدعوم أفضل على Web/Mobile)
       if (!mounted) return;
-      await Printing.layoutPdf(
-        onLayout: (_) async => pdf.save(),
-        name: 'تقرير_${_monthLabel()}.pdf',
+      final bytes = await pdf.save();
+      await Printing.sharePdf(
+        bytes: bytes,
+        filename: 'تقرير_${_monthLabel()}.pdf',
       );
     } catch (e) {
       if (!mounted) return;
