@@ -624,9 +624,7 @@ class AttendanceProvider extends ChangeNotifier {
         case AttendanceStatus.lateWithExcuse:
         case AttendanceStatus.lateExcusePending:
           stat.late++;
-          final shiftStart = shiftStartForDay(r.checkInTime, r.locationName);
-          final mins = (r.checkInTime.difference(shiftStart).inMinutes).abs(); // Ensures late minutes are always non-negative.
-          if (mins > 0) stat.totalLateMinutes += mins;
+          if (r.minutesLate > 0) stat.totalLateMinutes += r.minutesLate;
           break;
         case AttendanceStatus.absent:
           stat.absent++;

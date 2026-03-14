@@ -59,17 +59,9 @@ class _ReportsScreenState extends State<ReportsScreen> {
 
   Future<void> _exportPdf(Map<String, EmployeeStat> stats) async {
     try {
-      // Load Arabic fonts (requires internet — show loading indicator)
-      pw.Font arabicFont;
-      pw.Font arabicFontBold;
-      try {
-        arabicFont = await PdfGoogleFonts.cairoRegular();
-        arabicFontBold = await PdfGoogleFonts.cairoBold();
-      } catch (_) {
-        // Fallback to built-in font if no internet
-        arabicFont = pw.Font.helvetica();
-        arabicFontBold = pw.Font.helveticaBold();
-      }
+      // Load Arabic fonts directly from local assets (No Internet needed!)
+      final arabicFont = pw.Font.ttf(await DefaultAssetBundle.of(context).load('assets/fonts/Cairo-Regular.ttf'));
+      final arabicFontBold = pw.Font.ttf(await DefaultAssetBundle.of(context).load('assets/fonts/Cairo-Bold.ttf'));
 
       final pdf = pw.Document();
       final rows = stats.values.toList()
@@ -185,13 +177,14 @@ class _ReportsScreenState extends State<ReportsScreen> {
         ),
       );
 
-      // فتح شاشة مشاركة أو تحميل الحفظ (مدعوم أفضل على Web/Mobile)
       if (!mounted) return;
-      final bytes = await pdf.save();
-      await Printing.sharePdf(
-        bytes: bytes,
-        filename: 'تقرير_${_monthLabel()}.pdf',
+      
+      // Use layoutPdf instead of sharePdf for maximum reliability cross-platform
+      await Printing.layoutPdf(
+        onLayout: (PdfPageFormat format) async => pdf.save(),
+        name: 'تقرير_${_monthLabel()}.pdf',
       );
+      
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(

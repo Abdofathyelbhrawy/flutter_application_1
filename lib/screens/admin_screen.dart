@@ -232,18 +232,10 @@ class _AllRecordsTab extends StatelessWidget {
   final AttendanceProvider provider;
   const _AllRecordsTab({required this.provider});
 
-  /// حساب دقائق التأخير الحقيقية بناءً على وقت الشيفت الصحيح
-  int _computeMinutesLate(AttendanceRecord r) {
-    final shiftStart = provider.shiftStartForDay(r.checkInTime, r.locationName);
-    final graceEnd = shiftStart.add(Duration(minutes: provider.lateThresholdMinutes));
-    if (!r.checkInTime.isAfter(graceEnd)) return 0;
-    return r.checkInTime.difference(shiftStart).inMinutes;
-  }
-
   String _statusLabel(AttendanceRecord r) {
     switch (r.status) {
       case AttendanceStatus.present: return 'حاضر';
-      case AttendanceStatus.late: return 'متأخر ${AppTheme.formatLateTime(_computeMinutesLate(r))}';
+      case AttendanceStatus.late: return 'متأخر ${AppTheme.formatLateTime(r.minutesLate)}';
       case AttendanceStatus.lateWithExcuse: return 'متأخر بعذر';
       case AttendanceStatus.lateExcusePending: return 'عذر معلق';
       case AttendanceStatus.absent: return 'غياب';
@@ -437,7 +429,7 @@ class _AllRecordsTab extends StatelessWidget {
                                           .format(r.checkOutTime!)),
                                 if ((r.status == AttendanceStatus.late || r.status == AttendanceStatus.lateWithExcuse || r.status == AttendanceStatus.lateExcusePending))
                                   Builder(builder: (context) {
-                                    final mins = _computeMinutesLate(r);
+                                    final mins = r.minutesLate;
                                     if (mins <= 0) return const SizedBox.shrink();
                                     return _InfoRow(
                                         icon: Icons.timer_rounded,
