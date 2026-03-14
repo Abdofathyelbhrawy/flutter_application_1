@@ -1,6 +1,7 @@
 // screens/reports_screen.dart
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart' show rootBundle;
 import 'package:intl/intl.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:printing/printing.dart';
@@ -59,9 +60,9 @@ class _ReportsScreenState extends State<ReportsScreen> {
 
   Future<void> _exportPdf(Map<String, EmployeeStat> stats) async {
     try {
-      // Safely load Arabic fonts from assets
-      final regularData = await DefaultAssetBundle.of(context).load('assets/fonts/Cairo-Regular.ttf');
-      final boldData = await DefaultAssetBundle.of(context).load('assets/fonts/Cairo-Bold.ttf');
+      // Safely load Arabic fonts from assets using rootBundle
+      final regularData = await rootBundle.load('assets/fonts/Cairo-Regular.ttf');
+      final boldData = await rootBundle.load('assets/fonts/Cairo-Bold.ttf');
       
       final arabicFont = pw.Font.ttf(regularData);
       final arabicFontBold = pw.Font.ttf(boldData);
