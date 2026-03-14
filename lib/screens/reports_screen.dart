@@ -59,9 +59,12 @@ class _ReportsScreenState extends State<ReportsScreen> {
 
   Future<void> _exportPdf(Map<String, EmployeeStat> stats) async {
     try {
-      // Load Arabic fonts directly from local assets (No Internet needed!)
-      final arabicFont = pw.Font.ttf(await DefaultAssetBundle.of(context).load('assets/fonts/Cairo-Regular.ttf'));
-      final arabicFontBold = pw.Font.ttf(await DefaultAssetBundle.of(context).load('assets/fonts/Cairo-Bold.ttf'));
+      // Safely load Arabic fonts from assets
+      final regularData = await DefaultAssetBundle.of(context).load('assets/fonts/Cairo-Regular.ttf');
+      final boldData = await DefaultAssetBundle.of(context).load('assets/fonts/Cairo-Bold.ttf');
+      
+      final arabicFont = pw.Font.ttf(regularData);
+      final arabicFontBold = pw.Font.ttf(boldData);
 
       final pdf = pw.Document();
       final rows = stats.values.toList()
