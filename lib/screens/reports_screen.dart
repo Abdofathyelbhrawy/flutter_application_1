@@ -75,6 +75,10 @@ class _ReportsScreenState extends State<ReportsScreen> {
         pw.Page(
           pageFormat: PdfPageFormat.a4,
           textDirection: pw.TextDirection.rtl,
+          theme: pw.ThemeData.withFont(
+            base: arabicFont,
+            bold: arabicFontBold,
+          ),
           build: (ctx) => pw.Column(
             crossAxisAlignment: pw.CrossAxisAlignment.stretch,
             children: [
@@ -148,7 +152,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
                     return pw.TableRow(
                       decoration: pw.BoxDecoration(color: bg),
                       children: [
-                        s.name,
+                        s.name.isEmpty ? '—' : s.name,
                         '${s.present}',
                         '${s.late}',
                         '${s.absent}',
@@ -189,7 +193,8 @@ class _ReportsScreenState extends State<ReportsScreen> {
         name: 'تقرير_${_monthLabel()}.pdf',
       );
       
-    } catch (e) {
+    } catch (e, st) {
+      debugPrint('PDF Error: $e\n$st');
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
