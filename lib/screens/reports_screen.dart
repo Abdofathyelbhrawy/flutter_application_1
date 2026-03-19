@@ -11,6 +11,7 @@ import 'package:pdf/widgets.dart' as pw;
 import 'package:provider/provider.dart';
 import '../providers/attendance_provider.dart';
 import '../utils/app_theme.dart';
+import '../utils/pdf_download_stub.dart' if (dart.library.js_interop) '../utils/pdf_download_web.dart';
 
 class ReportsScreen extends StatefulWidget {
   const ReportsScreen({super.key});
@@ -201,13 +202,10 @@ class _ReportsScreenState extends State<ReportsScreen> {
       Navigator.of(context).pop(); // close loading dialog
       
       if (kIsWeb) {
-        // On web: open browser print preview
-        await Printing.layoutPdf(
-          onLayout: (_) async => bytes,
-          name: 'تقرير_${_monthLabel()}.pdf',
-        );
+        // On web: direct browser download (avoids Printing null errors)
+        downloadPdfWeb(bytes, 'تقرير_${_monthLabel()}.pdf');
       } else {
-        // On mobile: use share sheet (avoids null check crash)
+        // On mobile: use share sheet
         await Printing.sharePdf(
           bytes: bytes,
           filename: 'تقرير_${_monthLabel()}.pdf',
