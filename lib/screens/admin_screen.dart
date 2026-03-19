@@ -499,7 +499,7 @@ class _AllRecordsTab extends StatelessWidget {
                         ],
                       ),
                     );
-                  }).toList(),
+                  }),
                 ],
               );
             },
@@ -705,7 +705,7 @@ class _NotificationTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final type = notification['type'] as String;
     final name = notification['name'] as String;
-    final time = DateTime.parse(notification['time'] as String);
+    final time = DateTime.parse(notification['time'] as String).toLocal();
     final minutesLate = notification['minutesLate'] as int;
     final isRead = notification['read'] as bool;
 
@@ -732,6 +732,24 @@ class _NotificationTile extends StatelessWidget {
         icon = Icons.person_off_rounded;
         title = 'غياب تلقائي 🚫';
         subtitle = 'تم تسجيل $name كغائب لعدم كتابة عذر';
+        break;
+      case 'left_zone':
+        color = Colors.red;
+        icon = Icons.location_off_rounded;
+        title = '⚠️ خروج من النطاق';
+        subtitle = '$name خرج من نطاق العمل المسموح';
+        break;
+      case 'returned_zone':
+        color = Colors.green;
+        icon = Icons.location_on_rounded;
+        title = '🟢 عودة للنطاق';
+        subtitle = '$name عاد إلى نطاق العمل';
+        break;
+      case 'excuse_submitted':
+        color = Colors.blue;
+        icon = Icons.edit_note_rounded;
+        title = '📝 عذر جديد';
+        subtitle = '$name قدّم عذرًا للمراجعة';
         break;
       default:
         color = Colors.grey;

@@ -6,9 +6,11 @@ import 'package:geolocator/geolocator.dart';
 import '../models/attendance_record.dart';
 import '../services/notification_service.dart';
 import '../services/supabase_service.dart';
+import '../services/location_tracker.dart';
 
 final _notifService = NotificationService();
 final _supabaseService = SupabaseService();
+final _locationTracker = LocationTracker();
 
 class AttendanceProvider extends ChangeNotifier {
   List<AttendanceRecord> _records = [];
@@ -58,6 +60,11 @@ class AttendanceProvider extends ChangeNotifier {
   
   bool get locationRestrictionEnabled => _locationRestrictionEnabled;
   List<Map<String, dynamic>> get allowedLocations => _allowedLocations;
+
+  // Location tracking state
+  bool get isTrackingLocation => _locationTracker.isTracking;
+  String? get trackedEmployeeName => _locationTracker.trackedName;
+  bool get isEmployeeOutOfRange => _locationTracker.isOutOfRange;
 
   List<AttendanceRecord> get todayRecords {
     final now = DateTime.now();
@@ -266,11 +273,21 @@ class AttendanceProvider extends ChangeNotifier {
       'id': DateTime.now().millisecondsSinceEpoch.toString(),
       'type': late ? 'late_arrival' : 'arrival',
       'name': name,
-      'time': now.toIso8601String(),
+      'time': now.toUtc().toIso8601String(),
       'minutesLate': minutesLate,
       'recordId': record.id,
       'read': false,
     });
+
+    // Start location tracking after successful check-in
+    if (_allowedLocations.isNotEmpty) {
+      _locationTracker.startTracking(
+        employeeName: name,
+        recordId: record.id,
+        allowedLocations: _allowedLocations,
+      );
+      notifyListeners();
+    }
 
     return late ? 'late' : 'success';
   }
@@ -290,6 +307,12 @@ class AttendanceProvider extends ChangeNotifier {
 
     await _supabaseService.updateRecord(record);
     _notifService.showCheckOutNotification(name: record.name);
+
+    // Stop location tracking on check-out
+    if (_locationTracker.isTracking && _locationTracker.trackedName?.toLowerCase() == record.name.toLowerCase()) {
+      _locationTracker.stopTracking();
+      notifyListeners();
+    }
   }
 
   // Submit excuse
@@ -310,7 +333,7 @@ class AttendanceProvider extends ChangeNotifier {
       'id': DateTime.now().millisecondsSinceEpoch.toString(),
       'type': 'excuse_submitted',
       'name': record.name,
-      'time': DateTime.now().toIso8601String(),
+      'time': DateTime.now().toUtc().toIso8601String(),
       'minutesLate': record.minutesLate,
       'recordId': recordId,
       'read': false,
@@ -347,7 +370,7 @@ class AttendanceProvider extends ChangeNotifier {
         'id': DateTime.now().millisecondsSinceEpoch.toString(),
         'type': 'auto_absent',
         'name': record.name,
-        'time': DateTime.now().toIso8601String(),
+        'time': DateTime.now().toUtc().toIso8601String(),
         'minutesLate': record.minutesLate,
         'recordId': recordId,
         'read': false,

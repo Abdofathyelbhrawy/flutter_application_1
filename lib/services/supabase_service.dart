@@ -11,8 +11,8 @@ class SupabaseService {
     await _supabase.from('attendance_records').insert({
       'id': record.id,
       'name': record.name,
-      'check_in_time': record.checkInTime.toIso8601String(),
-      'check_out_time': record.checkOutTime?.toIso8601String(),
+      'check_in_time': record.checkInTime.toUtc().toIso8601String(),
+      'check_out_time': record.checkOutTime?.toUtc().toIso8601String(),
       'status': record.status.index,
       'excuse': record.excuse,
       'minutes_late': record.minutesLate,
@@ -24,7 +24,7 @@ class SupabaseService {
     await _supabase
         .from('attendance_records')
         .update({
-          'check_out_time': record.checkOutTime?.toIso8601String(),
+          'check_out_time': record.checkOutTime?.toUtc().toIso8601String(),
           'status': record.status.index,
           'excuse': record.excuse,
         })
@@ -61,16 +61,6 @@ class SupabaseService {
     await _supabase.from('attendance_records').delete().neq('id', '0');
   }
 
-  // Clear today's records (Manual Admin Action)
-  Future<void> clearTodayRecords() async {
-    final todayStr = DateTime.now().toIso8601String().split('T')[0];
-    // Delete records where check_in_time starts with today's date
-    await _supabase
-        .from('attendance_records')
-        .delete()
-        .gte('check_in_time', '${todayStr}T00:00:00')
-        .lt('check_in_time', '${todayStr}T23:59:59');
-  }
 
   Future<void> deleteRecords(List<String> ids) async {
     if (ids.isEmpty) return;

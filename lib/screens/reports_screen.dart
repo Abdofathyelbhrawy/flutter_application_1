@@ -1,5 +1,6 @@
 // screens/reports_screen.dart
 
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show rootBundle;
 import 'package:intl/intl.dart';
@@ -59,6 +60,15 @@ class _ReportsScreenState extends State<ReportsScreen> {
   }
 
   Future<void> _exportPdf(Map<String, EmployeeStat> stats) async {
+    // Show loading dialog
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => const Center(
+        child: CircularProgressIndicator(color: AppTheme.primaryColor),
+      ),
+    );
+
     try {
       // Safely load Arabic fonts from assets using rootBundle
       final regularData = await rootBundle.load('assets/fonts/Cairo-Regular.ttf');
@@ -185,17 +195,29 @@ class _ReportsScreenState extends State<ReportsScreen> {
         ),
       );
 
+      final bytes = await pdf.save();
+
       if (!mounted) return;
+      Navigator.of(context).pop(); // close loading dialog
       
-      // Use layoutPdf instead of sharePdf for maximum reliability cross-platform
-      await Printing.layoutPdf(
-        onLayout: (PdfPageFormat format) async => pdf.save(),
-        name: 'تقرير_${_monthLabel()}.pdf',
-      );
+      if (kIsWeb) {
+        // On web: open browser print preview
+        await Printing.layoutPdf(
+          onLayout: (_) async => bytes,
+          name: 'تقرير_${_monthLabel()}.pdf',
+        );
+      } else {
+        // On mobile: use share sheet (avoids null check crash)
+        await Printing.sharePdf(
+          bytes: bytes,
+          filename: 'تقرير_${_monthLabel()}.pdf',
+        );
+      }
       
     } catch (e, st) {
       debugPrint('PDF Error: $e\n$st');
       if (!mounted) return;
+      Navigator.of(context).pop(); // close loading dialog
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('خطأ في إنشاء PDF: ${e.toString()}', textAlign: TextAlign.center),

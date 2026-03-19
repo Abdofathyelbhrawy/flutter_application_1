@@ -360,6 +360,54 @@ class _CheckInScreenState extends State<CheckInScreen>
                       ],
                     ),
                   ),
+
+                  // Location tracking indicator
+                  Builder(builder: (context) {
+                    final provider = context.watch<AttendanceProvider>();
+                    if (!provider.isTrackingLocation) return const SizedBox.shrink();
+                    final outOfRange = provider.isEmployeeOutOfRange;
+                    return Padding(
+                      padding: const EdgeInsets.only(top: 16),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                        decoration: BoxDecoration(
+                          color: outOfRange
+                              ? Colors.red.withAlpha(30)
+                              : Colors.green.withAlpha(30),
+                          borderRadius: BorderRadius.circular(14),
+                          border: Border.all(
+                            color: outOfRange
+                                ? Colors.red.withAlpha(100)
+                                : Colors.green.withAlpha(100),
+                          ),
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(
+                              outOfRange
+                                  ? Icons.location_off_rounded
+                                  : Icons.my_location_rounded,
+                              color: outOfRange ? Colors.red : Colors.green,
+                              size: 20,
+                            ),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Text(
+                                outOfRange
+                                    ? '⚠️ أنت خارج نطاق العمل!'
+                                    : '📍 يتم تتبع موقعك — ${provider.trackedEmployeeName ?? ""}',
+                                style: TextStyle(
+                                  color: outOfRange ? Colors.red : Colors.green,
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  }),
                 ],
               ),
             ),
