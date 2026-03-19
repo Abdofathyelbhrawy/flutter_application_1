@@ -71,12 +71,19 @@ class _ReportsScreenState extends State<ReportsScreen> {
     );
 
     try {
-      // Safely load Arabic fonts from assets using rootBundle
-      final regularData = await rootBundle.load('assets/fonts/Cairo-Regular.ttf');
-      final boldData = await rootBundle.load('assets/fonts/Cairo-Bold.ttf');
-      
-      final arabicFont = pw.Font.ttf(regularData);
-      final arabicFontBold = pw.Font.ttf(boldData);
+      // Load Arabic fonts — use Google Fonts on web (more reliable), assets on mobile
+      pw.Font arabicFont;
+      pw.Font arabicFontBold;
+
+      if (kIsWeb) {
+        arabicFont = await PdfGoogleFonts.cairoRegular();
+        arabicFontBold = await PdfGoogleFonts.cairoBold();
+      } else {
+        final regularData = await rootBundle.load('assets/fonts/Cairo-Regular.ttf');
+        final boldData = await rootBundle.load('assets/fonts/Cairo-Bold.ttf');
+        arabicFont = pw.Font.ttf(regularData);
+        arabicFontBold = pw.Font.ttf(boldData);
+      }
 
       final pdf = pw.Document();
       final rows = stats.values.toList()
