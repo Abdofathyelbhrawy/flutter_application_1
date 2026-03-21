@@ -3,6 +3,8 @@ import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:uuid/uuid.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../models/attendance_record.dart';
 import '../services/notification_service.dart';
 import '../services/supabase_service.dart';
@@ -16,6 +18,10 @@ class AttendanceProvider extends ChangeNotifier {
   List<AttendanceRecord> _records = [];
   List<Map<String, dynamic>> _adminNotifications = [];
   
+  // Device Binding
+  String? _myDeviceId;
+  Map<String, String> _deviceBindings = {}; // {"الاسم": "device_uuid"}
+
   // Settings - Shift 1 (العياده - شفت 1)  [always enabled]
   int _shiftStartHour = 11;
   int _shiftStartMinute = 0;
@@ -25,13 +31,13 @@ class AttendanceProvider extends ChangeNotifier {
   int _shift2StartMinute = 0;
   // Settings - Shift 3 (المركز - صباحي)
   bool _shift3Enabled = true;
-  int _shift3StartHour = 10;
+  int _shift3StartHour = 9;
   int _shift3StartMinute = 0;
   // Settings - Shift 4 (المركز - مسائي)
   bool _shift4Enabled = true;
-  int _shift4StartHour = 19;
+  int _shift4StartHour = 17;
   int _shift4StartMinute = 0;
-  int _lateThresholdMinutes = 10;
+  int _lateThresholdMinutes = 20;
   int _absentAfterMinutes = 30;
   
   // Geofencing Settings
@@ -44,6 +50,7 @@ class AttendanceProvider extends ChangeNotifier {
 
   List<AttendanceRecord> get records => _records;
   List<Map<String, dynamic>> get adminNotifications => _adminNotifications;
+  Map<String, String> get deviceBindings => _deviceBindings;
   int get shiftStartHour => _shiftStartHour;
   int get shiftStartMinute => _shiftStartMinute;
   bool get shift2Enabled => _shift2Enabled;
@@ -94,8 +101,22 @@ class AttendanceProvider extends ChangeNotifier {
       _adminNotifications.where((n) => !(n['read'] as bool)).toList();
 
   AttendanceProvider() {
+    _initDeviceId();
     _initSupabase();
     _startAutoAbsentTimer();
+  }
+
+  Future<void> _initDeviceId() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      _myDeviceId = prefs.getString('device_token');
+      if (_myDeviceId == null) {
+        _myDeviceId = const Uuid().v4();
+        await prefs.setString('device_token', _myDeviceId!);
+      }
+    } catch (_) {
+      // Ignore if SharedPreferences fails (e.g., testing without mocks)
+    }
   }
 
   Future<void> _initSupabase() async {
@@ -218,7 +239,30 @@ class AttendanceProvider extends ChangeNotifier {
 
   // Check in a staff member
   Future<String> checkIn(String name) async {
-    // 1. Always verify location when locations are configured
+    // 1. Device Binding Check
+    if (_myDeviceId == null) await _initDeviceId();
+    if (_myDeviceId != null) {
+      final boundDeviceId = _deviceBindings[name];
+      if (boundDeviceId != null) {
+        if (boundDeviceId != _myDeviceId) {
+          return 'device_bound_to_other_device'; // "مسجل على جهاز آخر"
+        }
+      } else {
+        if (_deviceBindings.containsValue(_myDeviceId)) {
+          final existingName = _deviceBindings.entries.firstWhere((e) => e.value == _myDeviceId).key;
+          if (existingName.toLowerCase() != name.toLowerCase()) {
+            return 'device_used_by_other_user'; // "مربوط بالموظف X"
+          }
+        } else {
+          // Both free: Bind them!
+          final newBindings = Map<String, String>.from(_deviceBindings);
+          newBindings[name] = _myDeviceId!;
+          await updateSettings(deviceBindings: newBindings);
+        }
+      }
+    }
+
+    // 2. Always verify location when locations are configured
     String? locationName;
     if (_allowedLocations.isNotEmpty) {
       final locationNameBuf = StringBuffer();
@@ -442,6 +486,7 @@ class AttendanceProvider extends ChangeNotifier {
     int? absentAfterMinutes,
     bool? locationRestrictionEnabled,
     List<Map<String, dynamic>>? allowedLocations,
+    Map<String, String>? deviceBindings,
   }) async {
     if (shiftStartHour != null) {
       _shiftStartHour = shiftStartHour;
@@ -503,7 +548,19 @@ class AttendanceProvider extends ChangeNotifier {
       _allowedLocations = allowedLocations;
       await _supabaseService.saveSetting('allowedLocations', jsonEncode(allowedLocations));
     }
+    if (deviceBindings != null) {
+      _deviceBindings = deviceBindings;
+      await _supabaseService.saveSetting('deviceBindings', jsonEncode(deviceBindings));
+    }
     notifyListeners();
+  }
+
+  Future<void> unbindDevice(String employeeName) async {
+    if (_deviceBindings.containsKey(employeeName)) {
+      final newBindings = Map<String, String>.from(_deviceBindings);
+      newBindings.remove(employeeName);
+      await updateSettings(deviceBindings: newBindings);
+    }
   }
   
   // Helper to add current location
@@ -572,6 +629,14 @@ class AttendanceProvider extends ChangeNotifier {
         if (kDebugMode) print('Error parsing locations: $e');
       }
     }
+    if (settings.containsKey('deviceBindings')) {
+      try {
+        final Map<String, dynamic> decoded = jsonDecode(settings['deviceBindings']!);
+        _deviceBindings = decoded.map((k, v) => MapEntry(k, v.toString()));
+      } catch (e) {
+        if (kDebugMode) print('Error parsing deviceBindings: $e');
+      }
+    }
 
     // Ensure required fixed locations are present
     final requiredLocations = [
@@ -629,12 +694,17 @@ class AttendanceProvider extends ChangeNotifier {
     await _supabaseService.deleteRecords(ids);
   }
 
-  /// إحصائيات شهرية لكل موظف
-  Map<String, EmployeeStat> reportForMonth(int year, int month) {
+  /// إحصائيات شهرية لكل موظف (مع إمكانية الفلترة بالفرع)
+  Map<String, EmployeeStat> reportForMonth(int year, int month, {String? locationName}) {
     final Map<String, EmployeeStat> stats = {};
 
     for (final r in _records) {
       if (r.checkInTime.year != year || r.checkInTime.month != month) continue;
+      
+      // التصفية حسب الفرع لو تم اختياره
+      if (locationName != null && locationName != 'الكل') {
+        if (r.locationName != locationName) continue;
+      }
 
       final stat = stats.putIfAbsent(r.name, () => EmployeeStat(name: r.name));
 

@@ -406,6 +406,87 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen> {
                   ),
                 ),
 
+                const SizedBox(height: 16),
+
+                // Device Bindings Management
+                Container(
+                  decoration: BoxDecoration(color: AppTheme.cardColor, borderRadius: BorderRadius.circular(16)),
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      const Row(
+                        children: [
+                          Icon(Icons.devices_rounded, color: Colors.orange),
+                          SizedBox(width: 8),
+                          Text('الأجهزة المربوطة للموظفين', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 15)),
+                        ],
+                      ),
+                      const SizedBox(height: 4),
+                      const Text('يمكنك فك ارتباط جهاز الموظف ليتمكن من الدخول من متصفح/هاتف جديد.', style: TextStyle(color: Colors.white38, fontSize: 12)),
+                      const Divider(color: Colors.white10, height: 24),
+                      if (provider.deviceBindings.isEmpty)
+                        const Padding(
+                          padding: EdgeInsets.symmetric(vertical: 8),
+                          child: Text('لا توجد أجهزة مربوطة حالياً.', style: TextStyle(color: Colors.white54, fontSize: 13, fontStyle: FontStyle.italic)),
+                        )
+                      else
+                        ListView.builder(
+                          shrinkWrap: true,
+                          physics: const NeverScrollableScrollPhysics(),
+                          itemCount: provider.deviceBindings.length,
+                          itemBuilder: (ctx, i) {
+                            final entry = provider.deviceBindings.entries.elementAt(i);
+                            final empName = entry.key;
+                            return Container(
+                              margin: const EdgeInsets.only(bottom: 8),
+                              decoration: BoxDecoration(
+                                color: AppTheme.backgroundColor,
+                                borderRadius: BorderRadius.circular(8),
+                                border: Border.all(color: Colors.white10),
+                              ),
+                              child: ListTile(
+                                leading: CircleAvatar(
+                                  backgroundColor: Colors.orange.withAlpha(40),
+                                  child: const Icon(Icons.person_rounded, color: Colors.orange, size: 20),
+                                ),
+                                title: Text(empName, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14)),
+                                subtitle: const Text('جهاز مربوط', style: TextStyle(color: Colors.white54, fontSize: 11)),
+                                trailing: TextButton.icon(
+                                  onPressed: () {
+                                    // Confirm and unbind
+                                    showDialog(
+                                      context: context,
+                                      builder: (ctx) => AlertDialog(
+                                        backgroundColor: AppTheme.cardColor,
+                                        title: const Text('فك ارتباط الجهاز', style: TextStyle(color: Colors.white)),
+                                        content: Text('هل أنت متأكد من فك ارتباط جهاز الموظف ($empName)؟ سيتمكن من تسجيل الدخول من جهاز جديد.', style: const TextStyle(color: Colors.white70)),
+                                        actions: [
+                                          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('إلغاء', style: TextStyle(color: Colors.grey))),
+                                          ElevatedButton(
+                                            onPressed: () {
+                                              provider.unbindDevice(empName);
+                                              Navigator.pop(ctx);
+                                              ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('تم فك ارتباط جهاز $empName بنجاح.', textAlign: TextAlign.center), backgroundColor: Colors.green));
+                                            },
+                                            style: ElevatedButton.styleFrom(backgroundColor: Colors.orange),
+                                            child: const Text('فك الارتباط', style: TextStyle(color: Colors.white)),
+                                          ),
+                                        ],
+                                      ),
+                                    );
+                                  },
+                                  icon: const Icon(Icons.link_off_rounded, color: Colors.orange, size: 16),
+                                  label: const Text('فك', style: TextStyle(color: Colors.orange, fontSize: 12)),
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+                    ],
+                  ),
+                ),
+
                 const SizedBox(height: 24),
                 
                 ElevatedButton.icon(

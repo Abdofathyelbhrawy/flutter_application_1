@@ -1,4 +1,5 @@
 // screens/admin_screen.dart
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
@@ -115,6 +116,10 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> with Single
     super.initState();
     _tabController = TabController(length: 3, vsync: this);
     NotificationService().showNotifications = true;
+    // On web, ensure notification permission is requested when admin opens dashboard
+    if (kIsWeb) {
+      NotificationService().init();
+    }
   }
 
   @override

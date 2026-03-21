@@ -85,14 +85,17 @@ class _CheckInScreenState extends State<CheckInScreen>
     if (result == 'already_in') {
       _showSnackBar('⚠️ أنت مسجّل حضور بالفعل اليوم', Colors.orange);
       return;
+    } else if (result == 'device_bound_to_other_device') {
+      _showSnackBar('❌ هذا الحساب مربوط بجهاز متصفح آخر. يرجى مراجعة الإدارة.', Colors.red);
+      return;
+    } else if (result == 'device_used_by_other_user') {
+      _showSnackBar('❌ هذا الجهاز مربوط بموظف آخر. لا يمكنك التسجيل باسم مختلف.', Colors.red);
+      return;
     } else if (result == 'location_disabled') {
       _showSnackBar('❌ يجب تفعيل خدمة الموقع (GPS) لتسجيل الحضور', Colors.red);
       return;
-    } else if (result == 'permission_denied') {
+    } else if (result == 'permission_denied' || result == 'permission_denied_forever') {
       _showSnackBar('❌ يجب إعطاء صلاحية الموقع للتطبيق', Colors.red);
-      return;
-    } else if (result == 'permission_denied_forever') {
-      _showSnackBar('❌ صلاحية الموقع مرفوضة نهائياً. قم بتفعيلها من الإعدادات', Colors.red);
       return;
     } else if (result == 'out_of_range') {
       _showSnackBar('❌ أنت خارج النطاق المسموح به للحضور (بعيد عن المركز)', Colors.red);

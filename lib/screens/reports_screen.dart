@@ -22,6 +22,7 @@ class ReportsScreen extends StatefulWidget {
 
 class _ReportsScreenState extends State<ReportsScreen> {
   late DateTime _selectedMonth;
+  String _selectedLocation = 'الكل'; // 'الكل' means all locations
 
   @override
   void initState() {
@@ -120,7 +121,9 @@ class _ReportsScreenState extends State<ReportsScreen> {
                     ),
                     pw.SizedBox(height: 4),
                     pw.Text(
-                      _monthLabel(),
+                      _selectedLocation == 'الكل'
+                          ? _monthLabel()
+                          : '${_monthLabel()} - $_selectedLocation',
                       style: pw.TextStyle(
                         font: arabicFont,
                         fontSize: 13,
@@ -210,12 +213,14 @@ class _ReportsScreenState extends State<ReportsScreen> {
       
       if (kIsWeb) {
         // On web: direct browser download (avoids Printing null errors)
-        downloadPdfWeb(bytes, 'تقرير_${_monthLabel()}.pdf');
+        final locStr = _selectedLocation == 'الكل' ? '' : '_$_selectedLocation';
+        downloadPdfWeb(bytes, 'تقرير_${_monthLabel()}$locStr.pdf');
       } else {
         // On mobile: use share sheet
+        final locStr = _selectedLocation == 'الكل' ? '' : '_$_selectedLocation';
         await Printing.sharePdf(
           bytes: bytes,
-          filename: 'تقرير_${_monthLabel()}.pdf',
+          filename: 'تقرير_${_monthLabel()}$locStr.pdf',
         );
       }
       
@@ -241,6 +246,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
     final stats = provider.reportForMonth(
       _selectedMonth.year,
       _selectedMonth.month,
+      locationName: _selectedLocation,
     );
     final rows = stats.values.toList()
       ..sort((a, b) => a.name.compareTo(b.name));
@@ -284,6 +290,51 @@ class _ReportsScreenState extends State<ReportsScreen> {
             ],
           ),
         ),
+
+        // Location picker
+        Container(
+          margin: const EdgeInsets.symmetric(horizontal: 16),
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          decoration: BoxDecoration(
+            color: AppTheme.cardColor,
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: Colors.white12),
+          ),
+          child: DropdownButtonHideUnderline(
+            child: DropdownButton<String>(
+              value: _selectedLocation,
+              isExpanded: true,
+              dropdownColor: AppTheme.cardColor,
+              icon: const Icon(Icons.arrow_drop_down_rounded, color: Colors.white70),
+              style: const TextStyle(color: Colors.white, fontSize: 14),
+              onChanged: (String? newValue) {
+                if (newValue != null) {
+                  setState(() => _selectedLocation = newValue);
+                }
+              },
+              items: [
+                'الكل',
+                ...provider.allowedLocations.map((l) => l['name'] as String).toList(),
+              ].toSet().toList().map<DropdownMenuItem<String>>((String value) {
+                return DropdownMenuItem<String>(
+                  value: value,
+                  child: Row(
+                    children: [
+                      Icon(
+                        value == 'الكل' ? Icons.business_rounded : Icons.location_on_rounded,
+                        color: value == 'الكل' ? AppTheme.primaryColor : Colors.lightBlueAccent,
+                        size: 18,
+                      ),
+                      const SizedBox(width: 8),
+                      Text(value),
+                    ],
+                  ),
+                );
+              }).toList(),
+            ),
+          ),
+        ),
+        const SizedBox(height: 16),
 
         // Export button
         Padding(

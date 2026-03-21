@@ -20,6 +20,7 @@ dependencies:
   printing: ^5.13.1
   fl_chart: ^1.1.1
   web: ^1.1.0
+  shared_preferences: ^2.5.4
 
 dev_dependencies:
   flutter_test:
@@ -43,4 +44,9 @@ flutter:
 flutter_launcher_icons:
   android: true
   ios: true
+  web:
+    generate: true
+    image_path: "assets/image/icon (2).png"
+    background_color: "#0175C2"
+    theme_color: "#0175C2"
   image_path: "assets/image/icon (2).png"
