@@ -12,25 +12,7 @@ class AdminSettingsScreen extends StatefulWidget {
 }
 
 class _AdminSettingsScreenState extends State<AdminSettingsScreen> {
-  // Stored internally as 12-hour display values + AM/PM
-  late int _shiftHour12;   // 1-12
-  late int _shiftMinute;
-  late bool _shiftIsPm;
-
-  bool _shift2Enabled = true;
-  late int _shift2Hour12;
-  late int _shift2Minute;
-  late bool _shift2IsPm;
-
-  bool _shift3Enabled = true;
-  late int _shift3Hour12;
-  late int _shift3Minute;
-  late bool _shift3IsPm;
-
-  bool _shift4Enabled = true;
-  late int _shift4Hour12;
-  late int _shift4Minute;
-  late bool _shift4IsPm;
+  // Old shift variables removed
 
   late int _lateThreshold;
   late int _absentAfter;
@@ -60,26 +42,6 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen> {
   void initState() {
     super.initState();
     final p = context.read<AttendanceProvider>();
-
-    final s1 = _to12(p.shiftStartHour);
-    _shiftHour12   = s1.$1; _shiftIsPm  = s1.$2;
-    _shiftMinute   = p.shiftStartMinute;
-    _shift2Enabled = p.shift2Enabled;
-
-    final s2 = _to12(p.shift2StartHour);
-    _shift2Hour12  = s2.$1; _shift2IsPm = s2.$2;
-    _shift2Minute  = p.shift2StartMinute;
-    _shift3Enabled = p.shift3Enabled;
-
-    final s3 = _to12(p.shift3StartHour);
-    _shift3Hour12  = s3.$1; _shift3IsPm = s3.$2;
-    _shift3Minute  = p.shift3StartMinute;
-    _shift4Enabled = p.shift4Enabled;
-
-    final s4 = _to12(p.shift4StartHour);
-    _shift4Hour12  = s4.$1; _shift4IsPm = s4.$2;
-    _shift4Minute  = p.shift4StartMinute;
-
     _lateThreshold   = p.lateThresholdMinutes;
     _absentAfter     = p.absentAfterMinutes;
     _locationEnabled = p.locationRestrictionEnabled;
@@ -87,17 +49,6 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen> {
 
   Future<void> _save() async {
     await context.read<AttendanceProvider>().updateSettings(
-      shiftStartHour:    _to24(_shiftHour12,  _shiftIsPm),
-      shiftStartMinute:  _shiftMinute,
-      shift2Enabled:     _shift2Enabled,
-      shift2StartHour:   _to24(_shift2Hour12, _shift2IsPm),
-      shift2StartMinute: _shift2Minute,
-      shift3Enabled:     _shift3Enabled,
-      shift3StartHour:   _to24(_shift3Hour12, _shift3IsPm),
-      shift3StartMinute: _shift3Minute,
-      shift4Enabled:     _shift4Enabled,
-      shift4StartHour:   _to24(_shift4Hour12, _shift4IsPm),
-      shift4StartMinute: _shift4Minute,
       lateThresholdMinutes:      _lateThreshold,
       absentAfterMinutes:        _absentAfter,
       locationRestrictionEnabled: _locationEnabled,
@@ -233,6 +184,35 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen> {
     );
   }
 
+  Future<void> _addShiftToLocation(int locIndex) async {
+    final provider = context.read<AttendanceProvider>();
+    final List<Map<String, dynamic>> updatedLocations = List.from(provider.allowedLocations.map((e) => Map<String, dynamic>.from(e)));
+    var shifts = updatedLocations[locIndex]['shifts'];
+    if (shifts == null) {
+      shifts = [];
+      updatedLocations[locIndex]['shifts'] = shifts;
+    }
+    // Default new shift: 9:00 AM
+    (shifts as List).add({'hour': 9, 'minute': 0});
+    await provider.updateSettings(allowedLocations: updatedLocations);
+  }
+
+  Future<void> _removeShiftFromLocation(int locIndex, int shiftIndex) async {
+    final provider = context.read<AttendanceProvider>();
+    final List<Map<String, dynamic>> updatedLocations = List.from(provider.allowedLocations.map((e) => Map<String, dynamic>.from(e)));
+    var shifts = updatedLocations[locIndex]['shifts'] as List;
+    shifts.removeAt(shiftIndex);
+    await provider.updateSettings(allowedLocations: updatedLocations);
+  }
+
+  Future<void> _updateShiftTime(int locIndex, int shiftIndex, int newHour24, int newMin) async {
+    final provider = context.read<AttendanceProvider>();
+    final List<Map<String, dynamic>> updatedLocations = List.from(provider.allowedLocations.map((e) => Map<String, dynamic>.from(e)));
+    var shifts = updatedLocations[locIndex]['shifts'] as List;
+    shifts[shiftIndex] = {'hour': newHour24, 'minute': newMin};
+    await provider.updateSettings(allowedLocations: updatedLocations);
+  }
+
   @override
   Widget build(BuildContext context) {
     final provider = context.watch<AttendanceProvider>();
@@ -255,69 +235,7 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                // -- Shift 1: always on --
-                _SettingsCard(
-                  title: 'وقت بداية الدوام',
-                  subtitle: 'العياده - شفت 1 (دائماً مفعّل)',
-                  child: FittedBox(
-                    fit: BoxFit.scaleDown,
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        _NumberPicker(label: 'الساعة', value: _shiftHour12, min: 1, max: 12, onChanged: (v) => setState(() => _shiftHour12 = v)),
-                        const Padding(
-                          padding: EdgeInsets.symmetric(horizontal: 12),
-                          child: Text(':', style: TextStyle(color: Colors.white, fontSize: 28, fontWeight: FontWeight.bold)),
-                        ),
-                        _NumberPicker(label: 'الدقيقة', value: _shiftMinute, min: 0, max: 59, onChanged: (v) => setState(() => _shiftMinute = v)),
-                        const SizedBox(width: 12),
-                        _AmPmToggle(
-                          isPm: _shiftIsPm,
-                          onChanged: (v) => setState(() => _shiftIsPm = v),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 16),
-                // -- Shift 2: toggleable --
-                _ShiftCard(
-                  title: 'وقت بداية الدوام - العياده شفت 2',
-                  enabled: _shift2Enabled,
-                  onToggle: (v) => setState(() => _shift2Enabled = v),
-                  hour: _shift2Hour12,
-                  minute: _shift2Minute,
-                  isPm: _shift2IsPm,
-                  onHourChanged: (v) => setState(() => _shift2Hour12 = v),
-                  onMinuteChanged: (v) => setState(() => _shift2Minute = v),
-                  onAmPmChanged: (v) => setState(() => _shift2IsPm = v),
-                ),
-                const SizedBox(height: 16),
-                // -- Shift 3: المركز صباحي, toggleable --
-                _ShiftCard(
-                  title: 'وقت بداية الدوام - المركز (صباحي)',
-                  enabled: _shift3Enabled,
-                  onToggle: (v) => setState(() => _shift3Enabled = v),
-                  hour: _shift3Hour12,
-                  minute: _shift3Minute,
-                  isPm: _shift3IsPm,
-                  onHourChanged: (v) => setState(() => _shift3Hour12 = v),
-                  onMinuteChanged: (v) => setState(() => _shift3Minute = v),
-                  onAmPmChanged: (v) => setState(() => _shift3IsPm = v),
-                ),
-                const SizedBox(height: 16),
-                // -- Shift 4: المركز مسائي, toggleable --
-                _ShiftCard(
-                  title: 'وقت بداية الدوام - المركز (مسائي)',
-                  enabled: _shift4Enabled,
-                  onToggle: (v) => setState(() => _shift4Enabled = v),
-                  hour: _shift4Hour12,
-                  minute: _shift4Minute,
-                  isPm: _shift4IsPm,
-                  onHourChanged: (v) => setState(() => _shift4Hour12 = v),
-                  onMinuteChanged: (v) => setState(() => _shift4Minute = v),
-                  onAmPmChanged: (v) => setState(() => _shift4IsPm = v),
-                ),
+                // Removed old static shift cards
                 const SizedBox(height: 16),
                 _SettingsCard(
                   title: 'حد التأخير (بالدقائق)',
@@ -370,15 +288,93 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen> {
                             itemCount: locations.length,
                             itemBuilder: (ctx, i) {
                               final loc = locations[i];
-                              return ListTile(
-                                contentPadding: EdgeInsets.zero,
-                                leading: const Icon(Icons.location_on_rounded, color: Colors.blue),
-                                title: Text(loc['name'] ?? 'موقع ${i+1}', style: const TextStyle(color: Colors.white)),
-                                subtitle: Text('${loc['lat'].toStringAsFixed(4)}, ${loc['lng'].toStringAsFixed(4)}', style: const TextStyle(color: Colors.white54, fontSize: 11)),
-                                trailing: IconButton(
-                                  icon: const Icon(Icons.delete_rounded, color: Colors.red),
-                                  onPressed: () => provider.removeLocation(i),
-                                ),
+                              return Column(
+                                crossAxisAlignment: CrossAxisAlignment.stretch,
+                                children: [
+                                  ListTile(
+                                    contentPadding: EdgeInsets.zero,
+                                    leading: const Icon(Icons.location_on_rounded, color: Colors.blue),
+                                    title: Text(loc['name'] ?? 'موقع ${i+1}', style: const TextStyle(color: Colors.white)),
+                                    subtitle: Text('${loc['lat'].toStringAsFixed(4)}, ${loc['lng'].toStringAsFixed(4)}', style: const TextStyle(color: Colors.white54, fontSize: 11)),
+                                    trailing: IconButton(
+                                      icon: const Icon(Icons.delete_rounded, color: Colors.red),
+                                      onPressed: () => provider.removeLocation(i),
+                                    ),
+                                  ),
+                                  // Shifts for this location
+                                  Builder(
+                                    builder: (ctx) {
+                                      final shifts = (loc['shifts'] as List<dynamic>?) ?? [];
+                                      return Column(
+                                        children: [
+                                          for (int sIdx = 0; sIdx < shifts.length; sIdx++) ...[
+                                            Builder(
+                                              builder: (innerCtx) {
+                                                final shift = shifts[sIdx];
+                                                final s24 = _to12(shift['hour'] as int);
+                                                return Padding(
+                                                  padding: const EdgeInsets.only(right: 32, bottom: 8),
+                                                  child: Row(
+                                                    children: [
+                                                      Expanded(
+                                                        child: FittedBox(
+                                                          fit: BoxFit.scaleDown,
+                                                          alignment: Alignment.centerRight,
+                                                          child: Row(
+                                                            mainAxisAlignment: MainAxisAlignment.start,
+                                                            children: [
+                                                              _NumberPicker(
+                                                                label: 'الساعة',
+                                                                value: s24.$1,
+                                                                min: 1,
+                                                                max: 12,
+                                                                onChanged: (v) => _updateShiftTime(i, sIdx, _to24(v, s24.$2), shift['minute'] as int),
+                                                              ),
+                                                              const Padding(
+                                                                padding: EdgeInsets.symmetric(horizontal: 6),
+                                                                child: Text(':', style: TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold)),
+                                                              ),
+                                                              _NumberPicker(
+                                                                label: 'الدقيقة',
+                                                                value: shift['minute'] as int,
+                                                                min: 0,
+                                                                max: 59,
+                                                                onChanged: (v) => _updateShiftTime(i, sIdx, shift['hour'] as int, v),
+                                                              ),
+                                                              const SizedBox(width: 8),
+                                                              _AmPmToggle(
+                                                                isPm: s24.$2,
+                                                                onChanged: (v) => _updateShiftTime(i, sIdx, _to24(s24.$1, v), shift['minute'] as int),
+                                                              ),
+                                                            ],
+                                                          ),
+                                                        ),
+                                                      ),
+                                                      IconButton(
+                                                        icon: const Icon(Icons.remove_circle_outline_rounded, color: Colors.red),
+                                                        onPressed: () => _removeShiftFromLocation(i, sIdx),
+                                                      ),
+                                                    ],
+                                                  ),
+                                                );
+                                              }
+                                            ),
+                                          ],
+                                          // Add shift button
+                                          Align(
+                                            alignment: Alignment.centerRight,
+                                            child: TextButton.icon(
+                                              onPressed: () => _addShiftToLocation(i),
+                                              icon: const Icon(Icons.add_alarm_rounded, color: Colors.orange, size: 16),
+                                              label: const Text('إضافة موعد دوام', style: TextStyle(color: Colors.orange, fontSize: 12)),
+                                            ),
+                                          ),
+                                          const Divider(color: Colors.white10),
+                                        ],
+                                      );
+                                    }
+                                  ),
+                                ],
                               );
                             },
                           ),
@@ -657,100 +653,7 @@ class _NumberPicker extends StatelessWidget {
   }
 }
 
-/// A shift card with an enable/disable toggle.
-/// When [enabled] is false the time picker is hidden and the card is dimmed.
-class _ShiftCard extends StatelessWidget {
-  final String title;
-  final bool enabled;
-  final ValueChanged<bool> onToggle;
-  final int hour;    // 1-12
-  final int minute;
-  final bool isPm;
-  final ValueChanged<int> onHourChanged;
-  final ValueChanged<int> onMinuteChanged;
-  final ValueChanged<bool> onAmPmChanged;
 
-  const _ShiftCard({
-    required this.title,
-    required this.enabled,
-    required this.onToggle,
-    required this.hour,
-    required this.minute,
-    required this.isPm,
-    required this.onHourChanged,
-    required this.onMinuteChanged,
-    required this.onAmPmChanged,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return AnimatedOpacity(
-      duration: const Duration(milliseconds: 250),
-      opacity: enabled ? 1.0 : 0.45,
-      child: Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: AppTheme.cardColor,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(
-            color: enabled ? AppTheme.primaryColor.withAlpha(80) : Colors.white10,
-            width: 1.2,
-          ),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    title,
-                    style: TextStyle(
-                      color: enabled ? Colors.white : Colors.white54,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 14,
-                    ),
-                  ),
-                ),
-                Switch(
-                  value: enabled,
-                  onChanged: onToggle,
-                  activeThumbColor: AppTheme.primaryColor,
-                ),
-              ],
-            ),
-            if (enabled) ...[
-              const SizedBox(height: 10),
-              Center(
-                child: FittedBox(
-                  fit: BoxFit.scaleDown,
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      _NumberPicker(label: 'الساعة', value: hour, min: 1, max: 12, onChanged: onHourChanged),
-                      const Padding(
-                        padding: EdgeInsets.symmetric(horizontal: 12),
-                        child: Text(':', style: TextStyle(color: Colors.white, fontSize: 28, fontWeight: FontWeight.bold)),
-                      ),
-                      _NumberPicker(label: 'الدقيقة', value: minute, min: 0, max: 59, onChanged: onMinuteChanged),
-                      const SizedBox(width: 12),
-                      _AmPmToggle(isPm: isPm, onChanged: onAmPmChanged),
-                    ],
-                  ),
-                ),
-              ),
-            ] else ...[
-              const SizedBox(height: 6),
-              const Center(
-                child: Text('معطّل — لن يُستخدم هذا الشفت', style: TextStyle(color: Colors.white38, fontSize: 12)),
-              ),
-            ],
-          ],
-        ),
-      ),
-    );
-  }
-}
 
 /// زر AM / PM يُبدَّل بين الصباح والمساء
 class _AmPmToggle extends StatelessWidget {

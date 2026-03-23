@@ -22,21 +22,6 @@ class AttendanceProvider extends ChangeNotifier {
   String? _myDeviceId;
   Map<String, String> _deviceBindings = {}; // {"الاسم": "device_uuid"}
 
-  // Settings - Shift 1 (العياده - شفت 1)  [always enabled]
-  int _shiftStartHour = 11;
-  int _shiftStartMinute = 0;
-  // Settings - Shift 2 (العياده - شفت 2)
-  bool _shift2Enabled = true;
-  int _shift2StartHour = 19;
-  int _shift2StartMinute = 0;
-  // Settings - Shift 3 (المركز - صباحي)
-  bool _shift3Enabled = true;
-  int _shift3StartHour = 9;
-  int _shift3StartMinute = 0;
-  // Settings - Shift 4 (المركز - مسائي)
-  bool _shift4Enabled = true;
-  int _shift4StartHour = 17;
-  int _shift4StartMinute = 0;
   int _lateThresholdMinutes = 20;
   int _absentAfterMinutes = 30;
   
@@ -51,17 +36,6 @@ class AttendanceProvider extends ChangeNotifier {
   List<AttendanceRecord> get records => _records;
   List<Map<String, dynamic>> get adminNotifications => _adminNotifications;
   Map<String, String> get deviceBindings => _deviceBindings;
-  int get shiftStartHour => _shiftStartHour;
-  int get shiftStartMinute => _shiftStartMinute;
-  bool get shift2Enabled => _shift2Enabled;
-  int get shift2StartHour => _shift2StartHour;
-  int get shift2StartMinute => _shift2StartMinute;
-  bool get shift3Enabled => _shift3Enabled;
-  int get shift3StartHour => _shift3StartHour;
-  int get shift3StartMinute => _shift3StartMinute;
-  bool get shift4Enabled => _shift4Enabled;
-  int get shift4StartHour => _shift4StartHour;
-  int get shift4StartMinute => _shift4StartMinute;
   int get lateThresholdMinutes => _lateThresholdMinutes;
   int get absentAfterMinutes => _absentAfterMinutes;
   
@@ -147,39 +121,49 @@ class AttendanceProvider extends ChangeNotifier {
     super.dispose();
   }
 
-  /// Returns the correct shift start for the given day and location name.
-  /// يختار الشيفت اللي ينتمي له الموظف بناءً على أقل تأخير حقيقي:
-  ///   - لو سجل قبل بداية كل الشيفتات → الشيفت الأول
-  ///   - لو سجل بعد بداية شيفت → أحدث شيفت بدأ قبله (أي الشيفت الصح)
   DateTime shiftStartForDay(DateTime day, String? locationName) {
-    // جمع كل الشيفتات حسب الموقع
     List<DateTime> candidateShifts = [];
 
-    if (locationName != null && _isMorkazLocation(locationName)) {
-      // شيفتات المركز
-      if (_shift3Enabled) candidateShifts.add(DateTime(day.year, day.month, day.day, _shift3StartHour, _shift3StartMinute));
-      if (_shift4Enabled) candidateShifts.add(DateTime(day.year, day.month, day.day, _shift4StartHour, _shift4StartMinute));
-      if (candidateShifts.isEmpty) {
-        // لو الاتنين معطلين نرجع الشيفت الافتراضي
-        return DateTime(day.year, day.month, day.day, _shiftStartHour, _shiftStartMinute);
+    // Find location in _allowedLocations
+    Map<String, dynamic>? loc;
+    if (locationName != null) {
+      loc = _allowedLocations.firstWhere(
+        (l) => l['name'] == locationName,
+        orElse: () => <String, dynamic>{}, // Return empty map if not found
+      );
+    }
+    
+    // Add shifts from the matched location
+    if (loc != null && loc.isNotEmpty && loc.containsKey('shifts')) {
+      final shifts = loc['shifts'] as List<dynamic>;
+      for (final s in shifts) {
+        candidateShifts.add(DateTime(day.year, day.month, day.day, s['hour'] as int, s['minute'] as int));
       }
-    } else if (locationName == null) {
-      // لو مفيش موقع، نجرب كل الشيفتات
-      candidateShifts.add(DateTime(day.year, day.month, day.day, _shiftStartHour, _shiftStartMinute));
-      if (_shift2Enabled) candidateShifts.add(DateTime(day.year, day.month, day.day, _shift2StartHour, _shift2StartMinute));
-      if (_shift3Enabled) candidateShifts.add(DateTime(day.year, day.month, day.day, _shift3StartHour, _shift3StartMinute));
-      if (_shift4Enabled) candidateShifts.add(DateTime(day.year, day.month, day.day, _shift4StartHour, _shift4StartMinute));
-    } else {
-      // شيفتات العيادة
-      candidateShifts.add(DateTime(day.year, day.month, day.day, _shiftStartHour, _shiftStartMinute));
-      if (_shift2Enabled) candidateShifts.add(DateTime(day.year, day.month, day.day, _shift2StartHour, _shift2StartMinute));
+    }
+
+    if (candidateShifts.isEmpty) {
+      // Fallback to clinic shifts if location not found or has no shifts
+      final clinicLoc = _allowedLocations.firstWhere(
+        (l) => l['name'] == 'العياده',
+        orElse: () => <String, dynamic>{},
+      );
+      if (clinicLoc.isNotEmpty && clinicLoc.containsKey('shifts')) {
+        final shifts = clinicLoc['shifts'] as List<dynamic>;
+        for (final s in shifts) {
+          candidateShifts.add(DateTime(day.year, day.month, day.day, s['hour'] as int, s['minute'] as int));
+        }
+      }
+    }
+
+    // Default fallback if NOTHING is configured
+    if (candidateShifts.isEmpty) {
+      candidateShifts.add(DateTime(day.year, day.month, day.day, 11, 0));
+      candidateShifts.add(DateTime(day.year, day.month, day.day, 19, 0));
     }
 
     candidateShifts.sort((a, b) => a.compareTo(b));
 
     // اختر الشيفت الذي يقلل الفارق الزمني (absolute difference) بين وقت الدخول وبداية الشيفت.
-    // هذا يحل مشكلة تسجيل الدخول المبكر (early check-in) حيث لم تكن الشروط السابقة تلتقطه 
-    // بشكل صحيح مما كان يؤدي لحساب تأخير ضخم على الشيفت السابق.
     DateTime bestShift = candidateShifts.first;
     int minDiff = (day.difference(bestShift).inMinutes).abs();
 
@@ -193,11 +177,6 @@ class AttendanceProvider extends ChangeNotifier {
     }
 
     return bestShift;
-  }
-
-  bool _isMorkazLocation(String? locationName) {
-    if (locationName == null) return false;
-    return locationName.contains('مركز') || locationName.contains('بسيون') || locationName.contains('السنطة');
   }
 
   // --- Location Logic ---
@@ -471,67 +450,12 @@ class AttendanceProvider extends ChangeNotifier {
 
   // Settings
   Future<void> updateSettings({
-    int? shiftStartHour,
-    int? shiftStartMinute,
-    bool? shift2Enabled,
-    int? shift2StartHour,
-    int? shift2StartMinute,
-    bool? shift3Enabled,
-    int? shift3StartHour,
-    int? shift3StartMinute,
-    bool? shift4Enabled,
-    int? shift4StartHour,
-    int? shift4StartMinute,
     int? lateThresholdMinutes,
     int? absentAfterMinutes,
     bool? locationRestrictionEnabled,
     List<Map<String, dynamic>>? allowedLocations,
     Map<String, String>? deviceBindings,
   }) async {
-    if (shiftStartHour != null) {
-      _shiftStartHour = shiftStartHour;
-      await _supabaseService.saveSetting('shiftStartHour', shiftStartHour.toString());
-    }
-    if (shiftStartMinute != null) {
-      _shiftStartMinute = shiftStartMinute;
-      await _supabaseService.saveSetting('shiftStartMinute', shiftStartMinute.toString());
-    }
-    if (shift2Enabled != null) {
-      _shift2Enabled = shift2Enabled;
-      await _supabaseService.saveSetting('shift2Enabled', shift2Enabled.toString());
-    }
-    if (shift2StartHour != null) {
-      _shift2StartHour = shift2StartHour;
-      await _supabaseService.saveSetting('shift2StartHour', shift2StartHour.toString());
-    }
-    if (shift2StartMinute != null) {
-      _shift2StartMinute = shift2StartMinute;
-      await _supabaseService.saveSetting('shift2StartMinute', shift2StartMinute.toString());
-    }
-    if (shift3Enabled != null) {
-      _shift3Enabled = shift3Enabled;
-      await _supabaseService.saveSetting('shift3Enabled', shift3Enabled.toString());
-    }
-    if (shift3StartHour != null) {
-      _shift3StartHour = shift3StartHour;
-      await _supabaseService.saveSetting('shift3StartHour', shift3StartHour.toString());
-    }
-    if (shift3StartMinute != null) {
-      _shift3StartMinute = shift3StartMinute;
-      await _supabaseService.saveSetting('shift3StartMinute', shift3StartMinute.toString());
-    }
-    if (shift4Enabled != null) {
-      _shift4Enabled = shift4Enabled;
-      await _supabaseService.saveSetting('shift4Enabled', shift4Enabled.toString());
-    }
-    if (shift4StartHour != null) {
-      _shift4StartHour = shift4StartHour;
-      await _supabaseService.saveSetting('shift4StartHour', shift4StartHour.toString());
-    }
-    if (shift4StartMinute != null) {
-      _shift4StartMinute = shift4StartMinute;
-      await _supabaseService.saveSetting('shift4StartMinute', shift4StartMinute.toString());
-    }
     if (lateThresholdMinutes != null) {
       _lateThresholdMinutes = lateThresholdMinutes;
       await _supabaseService.saveSetting('lateThresholdMinutes', lateThresholdMinutes.toString());
@@ -604,17 +528,6 @@ class AttendanceProvider extends ChangeNotifier {
 
   /// يُطبَّق عند أول تحميل وعند كل تغيير real-time في الإعدادات
   void _applySettings(Map<String, String> settings) {
-    if (settings.containsKey('shiftStartHour')) _shiftStartHour = int.parse(settings['shiftStartHour']!);
-    if (settings.containsKey('shiftStartMinute')) _shiftStartMinute = int.parse(settings['shiftStartMinute']!);
-    if (settings.containsKey('shift2Enabled')) _shift2Enabled = settings['shift2Enabled'] == 'true';
-    if (settings.containsKey('shift2StartHour')) _shift2StartHour = int.parse(settings['shift2StartHour']!);
-    if (settings.containsKey('shift2StartMinute')) _shift2StartMinute = int.parse(settings['shift2StartMinute']!);
-    if (settings.containsKey('shift3Enabled')) _shift3Enabled = settings['shift3Enabled'] == 'true';
-    if (settings.containsKey('shift3StartHour')) _shift3StartHour = int.parse(settings['shift3StartHour']!);
-    if (settings.containsKey('shift3StartMinute')) _shift3StartMinute = int.parse(settings['shift3StartMinute']!);
-    if (settings.containsKey('shift4Enabled')) _shift4Enabled = settings['shift4Enabled'] == 'true';
-    if (settings.containsKey('shift4StartHour')) _shift4StartHour = int.parse(settings['shift4StartHour']!);
-    if (settings.containsKey('shift4StartMinute')) _shift4StartMinute = int.parse(settings['shift4StartMinute']!);
     if (settings.containsKey('lateThresholdMinutes')) _lateThresholdMinutes = int.parse(settings['lateThresholdMinutes']!);
     if (settings.containsKey('absentAfterMinutes')) _absentAfterMinutes = int.parse(settings['absentAfterMinutes']!);
 
@@ -640,19 +553,66 @@ class AttendanceProvider extends ChangeNotifier {
 
     // Ensure required fixed locations are present
     final requiredLocations = [
-      {'name': 'أسنان سكان بسيون', 'lat': 30.939249, 'lng': 30.814687},
-      {'name': 'بري وبانوراما', 'lat': 30.724964, 'lng': 31.121525},
-      {'name': 'أسنان سكان السنطة', 'lat': 30.728838, 'lng': 31.123164},
-      {'name': 'العياده', 'lat': 30.726037, 'lng': 31.121446},
+      {
+        'name': 'أسنان سكان بسيون',
+        'lat': 30.939249,
+        'lng': 30.814687,
+        'shifts': [
+          {'hour': 9, 'minute': 0},
+          {'hour': 14, 'minute': 0},
+        ]
+      },
+      {
+        'name': 'بري وبانوراما',
+        'lat': 30.724964,
+        'lng': 31.121525,
+        'shifts': [
+          {'hour': 9, 'minute': 0},
+          {'hour': 17, 'minute': 0},
+        ]
+      },
+      {
+        'name': 'أسنان سكان السنطة',
+        'lat': 30.728838,
+        'lng': 31.123164,
+        'shifts': [
+          {'hour': 9, 'minute': 0},
+          {'hour': 11, 'minute': 0},
+          {'hour': 13, 'minute': 0},
+          {'hour': 15, 'minute': 0},
+        ]
+      },
+      {
+        'name': 'العياده',
+        'lat': 30.726037,
+        'lng': 31.121446,
+        'shifts': [
+          {'hour': 11, 'minute': 0},
+          {'hour': 19, 'minute': 0},
+        ]
+      },
     ];
+    
     bool locationListChanged = false;
     for (final req in requiredLocations) {
-      final alreadyExists = _allowedLocations.any((l) => l['name'] == req['name']);
-      if (!alreadyExists) {
+      final existingIdx = _allowedLocations.indexWhere((l) => l['name'] == req['name']);
+      if (existingIdx == -1) {
         _allowedLocations.add(Map<String, dynamic>.from(req));
         locationListChanged = true;
+      } else {
+        // If it exists but has no shifts configured (or needs an update), inject default shifts
+        // Force update to accept new image schedules
+        if (req['name'] == 'أسنان سكان السنطة' ||
+            req['name'] == 'بري وبانوراما' ||
+            req['name'] == 'أسنان سكان بسيون' ||
+            !_allowedLocations[existingIdx].containsKey('shifts') ||
+            (_allowedLocations[existingIdx]['shifts'] as List).isEmpty) {
+          _allowedLocations[existingIdx]['shifts'] = req['shifts'];
+          locationListChanged = true;
+        }
       }
     }
+    
     if (locationListChanged) {
       _supabaseService.saveSetting('allowedLocations', jsonEncode(_allowedLocations));
     }
