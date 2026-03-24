@@ -107,7 +107,32 @@ class AttendanceProvider extends ChangeNotifier {
       notifyListeners();
     });
 
+    bool _isFirstLoad = true;
     _notifSubscription = _supabaseService.streamNotifications().listen((data) {
+      if (_isFirstLoad) {
+        _isFirstLoad = false;
+      } else {
+        // Find newly arrived notifications and show them
+        for (final notif in data) {
+          final id = notif['id'] as String;
+          final bool isNew = !_adminNotifications.any((n) => n['id'] == id);
+          if (isNew && notif['read'] == false) {
+            final type = notif['type'] as String;
+            final name = notif['name'] as String;
+            if (type == 'arrival' || type == 'late_arrival') {
+              _notifService.showCheckInNotification(
+                name: name,
+                isLate: type == 'late_arrival',
+                minutesLate: (notif['minutesLate'] as int?) ?? 0,
+              );
+            } else if (type == 'excuse_submitted') {
+              _notifService.showExcuseNotification(name: name, excuse: 'عذر جديد للمراجعة');
+            } else if (type == 'auto_absent') {
+              _notifService.showAbsentNotification(name: name);
+            }
+          }
+        }
+      }
       _adminNotifications = data;
       notifyListeners();
     });
@@ -261,6 +286,12 @@ class AttendanceProvider extends ChangeNotifier {
           r.checkInTime.day != now.day) {
         return false;
       }
+      
+      // If the location is different, allow them to check in again
+      if (r.locationName != locationName) {
+        return false;
+      }
+
       // Compare against the same shift window
       final recordShiftStart = shiftStartForDay(r.checkInTime, r.locationName);
       return recordShiftStart == shiftStart;
