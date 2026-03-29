@@ -7,7 +7,6 @@ import '../providers/attendance_provider.dart';
 import '../utils/app_theme.dart';
 import 'checkin_screen.dart';
 import 'checkout_screen.dart';
-import 'admin_screen.dart';
 
 
 class HomeScreen extends StatefulWidget {
@@ -148,14 +147,10 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final provider = context.watch<AttendanceProvider>();
-    final unreadCount = provider.unreadNotifications.length;
-
     // Pages: swap checkin/checkout with blocker if location not granted
     final List<Widget> pages = [
       _locationGranted ? const CheckInScreen() : _LocationBlockedScreen(onRetry: _requestLocationPermission),
       _locationGranted ? const CheckOutScreen() : _LocationBlockedScreen(onRetry: _requestLocationPermission),
-      const AdminLoginScreen(),
     ];
 
     return Scaffold(
@@ -193,13 +188,6 @@ class _HomeScreenState extends State<HomeScreen> {
               label: 'انصراف',
               selected: _selectedIndex == 1,
               onTap: () => setState(() => _selectedIndex = 1),
-            ),
-            _NavItem(
-              icon: Icons.admin_panel_settings_rounded,
-              label: 'الأدمن',
-              selected: _selectedIndex == 2,
-              badge: unreadCount > 0 ? '$unreadCount' : null,
-              onTap: () => setState(() => _selectedIndex = 2),
             ),
           ],
         ),

@@ -81,45 +81,6 @@ class SupabaseService {
     });
   }
 
-  Stream<List<Map<String, dynamic>>> streamNotifications() {
-    return _supabase
-        .from('admin_notifications')
-        .stream(primaryKey: ['id'])
-        .order('time', ascending: false)
-        .map(
-          (data) => data.map((json) {
-            return {
-              'id': json['id'],
-              'type': json['type'],
-              'name': json['name'],
-              'time': json['time'],
-              'minutesLate': json['minutes_late'],
-              'recordId': json['record_id'],
-              'read': json['is_read'],
-            };
-          }).toList(),
-        );
-  }
-
-  Future<void> markNotificationRead(String id) async {
-    await _supabase
-        .from('admin_notifications')
-        .update({'is_read': true})
-        .eq('id', id);
-  }
-
-  Future<void> markAllNotificationsRead(List<String> ids) async {
-    if (ids.isEmpty) return;
-    await _supabase
-        .from('admin_notifications')
-        .update({'is_read': true})
-        .inFilter('id', ids);
-  }
-
-  Future<void> clearAllNotifications() async {
-    await _supabase.from('admin_notifications').delete().neq('id', '');
-  }
-
   // --- Settings ---
 
   Future<void> saveSetting(String key, String value) async {
@@ -135,7 +96,6 @@ class SupabaseService {
     return settings;
   }
 
-  /// بث real-time للإعدادات — يُطلق عند كل تغيير في جدول app_settings
   Stream<Map<String, String>> streamSettings() {
     return _supabase
         .from('app_settings')
@@ -149,4 +109,3 @@ class SupabaseService {
         });
   }
 }
-

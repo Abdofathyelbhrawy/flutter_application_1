@@ -16,25 +16,21 @@ final _locationTracker = LocationTracker();
 
 class AttendanceProvider extends ChangeNotifier {
   List<AttendanceRecord> _records = [];
-  List<Map<String, dynamic>> _adminNotifications = [];
   
   // Device Binding
   String? _myDeviceId;
-  Map<String, String> _deviceBindings = {}; // {"الاسم": "device_uuid"}
+  Map<String, String> _deviceBindings = {};
 
   int _lateThresholdMinutes = 20;
   int _absentAfterMinutes = 30;
   
-  // Geofencing Settings
   bool _locationRestrictionEnabled = false;
-  List<Map<String, dynamic>> _allowedLocations = []; // [{'name': '..', 'lat': .., 'lng': ..}]
+  List<Map<String, dynamic>> _allowedLocations = [];
 
   StreamSubscription? _recordsSubscription;
-  StreamSubscription? _notifSubscription;
   StreamSubscription? _settingsSubscription;
 
   List<AttendanceRecord> get records => _records;
-  List<Map<String, dynamic>> get adminNotifications => _adminNotifications;
   Map<String, String> get deviceBindings => _deviceBindings;
   int get lateThresholdMinutes => _lateThresholdMinutes;
   int get absentAfterMinutes => _absentAfterMinutes;
@@ -71,9 +67,6 @@ class AttendanceProvider extends ChangeNotifier {
     return grouped;
   }
 
-  List<Map<String, dynamic>> get unreadNotifications =>
-      _adminNotifications.where((n) => !(n['read'] as bool)).toList();
-
   AttendanceProvider() {
     _initDeviceId();
     _initSupabase();
@@ -94,10 +87,8 @@ class AttendanceProvider extends ChangeNotifier {
   }
 
   Future<void> _initSupabase() async {
-    // Load settings once first (to populate values before stream fires)
     await _loadSettings();
 
-    // Then subscribe to real-time settings changes
     _settingsSubscription = _supabaseService.streamSettings().listen((settings) {
       _applySettings(settings);
     });
@@ -106,42 +97,11 @@ class AttendanceProvider extends ChangeNotifier {
       _records = data;
       notifyListeners();
     });
-
-    bool _isFirstLoad = true;
-    _notifSubscription = _supabaseService.streamNotifications().listen((data) {
-      if (_isFirstLoad) {
-        _isFirstLoad = false;
-      } else {
-        // Find newly arrived notifications and show them
-        for (final notif in data) {
-          final id = notif['id'] as String;
-          final bool isNew = !_adminNotifications.any((n) => n['id'] == id);
-          if (isNew && notif['read'] == false) {
-            final type = notif['type'] as String;
-            final name = notif['name'] as String;
-            if (type == 'arrival' || type == 'late_arrival') {
-              _notifService.showCheckInNotification(
-                name: name,
-                isLate: type == 'late_arrival',
-                minutesLate: (notif['minutesLate'] as int?) ?? 0,
-              );
-            } else if (type == 'excuse_submitted') {
-              _notifService.showExcuseNotification(name: name, excuse: 'عذر جديد للمراجعة');
-            } else if (type == 'auto_absent') {
-              _notifService.showAbsentNotification(name: name);
-            }
-          }
-        }
-      }
-      _adminNotifications = data;
-      notifyListeners();
-    });
   }
 
   @override
   void dispose() {
     _recordsSubscription?.cancel();
-    _notifSubscription?.cancel();
     _settingsSubscription?.cancel();
     super.dispose();
   }
@@ -432,19 +392,6 @@ class AttendanceProvider extends ChangeNotifier {
     }
   }
 
-  // Admin: Mark Read
-  Future<void> markNotificationRead(String notifId) async {
-    await _supabaseService.markNotificationRead(notifId);
-  }
-
-  Future<void> markAllNotificationsRead() async {
-    final ids = unreadNotifications.map((n) => n['id'] as String).toList();
-    await _supabaseService.markAllNotificationsRead(ids);
-  }
-
-  Future<void> clearAllNotifications() async {
-    await _supabaseService.clearAllNotifications();
-  }
 
   // Timer for auto-absent
   void _startAutoAbsentTimer() {
@@ -674,62 +621,5 @@ class AttendanceProvider extends ChangeNotifier {
     };
   }
 
-  Future<void> clearAll() async {
-    await _supabaseService.clearAllRecords();
-  }
 
-  Future<void> clearToday() async {
-     // Get IDs of today's records
-    final todayRecs = todayRecords;
-    final ids = todayRecs.map((r) => r.id).toList();
-    await _supabaseService.deleteRecords(ids);
-  }
-
-  /// إحصائيات شهرية لكل موظف (مع إمكانية الفلترة بالفرع)
-  Map<String, EmployeeStat> reportForMonth(int year, int month, {String? locationName}) {
-    final Map<String, EmployeeStat> stats = {};
-
-    for (final r in _records) {
-      if (r.checkInTime.year != year || r.checkInTime.month != month) continue;
-      
-      // التصفية حسب الفرع لو تم اختياره
-      if (locationName != null && locationName != 'الكل') {
-        if (r.locationName != locationName) continue;
-      }
-
-      final stat = stats.putIfAbsent(r.name, () => EmployeeStat(name: r.name));
-
-      switch (r.status) {
-        case AttendanceStatus.present:
-        case AttendanceStatus.checkedOut:
-          stat.present++;
-          break;
-        case AttendanceStatus.late:
-        case AttendanceStatus.lateWithExcuse:
-        case AttendanceStatus.lateExcusePending:
-          stat.late++;
-          if (r.minutesLate > 0) stat.totalLateMinutes += r.minutesLate;
-          break;
-        case AttendanceStatus.absent:
-          stat.absent++;
-          break;
-      }
-    }
-
-    return stats;
-  }
 }
-
-/// بيانات إحصائية لموظف واحد في شهر معين
-class EmployeeStat {
-  final String name;
-  int present = 0;
-  int late = 0;
-  int absent = 0;
-  int totalLateMinutes = 0;
-
-  EmployeeStat({required this.name});
-
-  int get total => present + late + absent;
-}
-
